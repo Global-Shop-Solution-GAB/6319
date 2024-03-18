@@ -1,0 +1,400 @@
+Program.Sub.Preflight.Start
+V.Global.sCon.Declare(String,"")
+Program.External.Include.Library("6000.lib")
+Program.External.Include.Library("900300.lib")
+V.Global.sErrorFile.Declare(String,"")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.bRet.Declare(Boolean,False)
+
+F.Intrinsic.Control.If(V.Caller.GlobalDir.Right1,=,"\")
+	F.Intrinsic.String.Build("{0}Custom",V.Caller.GlobalDir,V.Global.sErrorFile)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("{0}\Custom",V.Caller.GlobalDir,V.Global.sErrorFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.DirExists(V.Global.sErrorFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet,=,False)
+	F.Intrinsic.File.CreateDir(V.Global.sErrorFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\6319",V.Global.sErrorFile,V.Global.sErrorFile)
+
+F.Intrinsic.File.DirExists(V.Global.sErrorFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet,=,False)
+	F.Intrinsic.File.CreateDir(V.Global.sErrorFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\{1}FlexErrorLog.txt",V.Global.sErrorFile,V.Caller.CompanyCode,V.Global.sErrorFile)
+
+F.Intrinsic.Control.CallSub(Get_Data)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST_FLEX.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Tab,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"Message",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Get_Data.Start
+F.Intrinsic.Control.SetErrorHandler("Get_Data_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.i.Declare(Long,0)
+
+F.Data.DataTable.Create("TaskFlex",True)
+F.Data.DataTable.AddColumn("TaskFlex","TaskName",String)
+F.Data.DataTable.AddColumn("TaskFlex","Schedule",String)
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+'getting signma nest connection info
+F.Intrinsic.String.Build("Select Sig_Provider, Sig_Server, Sig_Data, UID, PWD From GCG_6319_Sigma_Dir Where Company = '{0}'",V.Caller.CompanyCode,V.Local.sSql)
+F.Data.DataTable.CreateFromSQL("SigDir","Con",V.Local.sSql,True)
+
+F.Intrinsic.Control.If(v.DataTable.SigDir.RowCount--,<>,-1)
+	F.Intrinsic.Control.If(V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Provider!FieldValTrim,<>,"","OR",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Server!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Data!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).UID!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).PWD!FieldValTrim,<>,"")
+		F.Intrinsic.String.Build("Provider={0};Server={1};Database={2};Uid={3};Pwd={4};",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Provider!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Server!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Data!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).UID!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).PWD!FieldValTrim,V.Global.sCon)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.UI.Msgbox("Go to Menu Item: Shop Floor Control > File > SigmaNest Integration Directories (6319) to set up a SigmanNest Connection Data.","Attention")
+		F.ODBC.Connection!Con.Close
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+'getting list of Job_Suffix
+
+F.Data.Dictionary.CreateFromSQL("JobOp","con","Select rtrim(A.Job) + '-' + (if(A.Suffix is Null,'   ',A.Suffix)) + '-' + A.Seq, 'Y' as CurrentJob From V_Job_Operations A Left Join V_Job_Header B on A.Job = B.Job and A.Suffix = B.Suffix Where A.LMO = 'L' and A.Seq < 995000 and B.Date_Closed = '1900-01-01'")
+F.Data.Dictionary.SetDefaultReturn("JobOp","N")
+
+F.Data.Dictionary.CreateFromSQL("Flex","con","Select rtrim(TaskName), Schedule from GCG_6319_Task_Flex")
+F.Data.Dictionary.SetDefaultReturn("Flex","-1")
+
+F.ODBC.Connection!Con.Close
+
+f.ODBC.Connection!conS.openconnection(V.Global.sCon)
+
+f.Data.Datatable.CreateFromSQL("Nests","conS","select a.ProgramName, a.WONumber, b.TaskName, a.SheetName, b.Comment from PIP a join Program b on a.programname = b.programname",True)
+'F.Intrinsic.Control.If(V.Caller.User.UCase,=,"SUPERVSR")
+'	f.Data.Datatable.CreateFromSQL("Temp","conS","select * from Program",True)
+'	f.Data.Datatable.CreateFromSQL("Temp2","conS","select * from PIP",True)
+'	Function.Intrinsic.Debug.InvokeDebugger
+'	Function.Intrinsic.Debug.Stop
+'F.Intrinsic.Control.EndIf
+F.ODBC.Connection!conS.Close
+
+F.Data.DataTable.AddColumn("Nests","Schedule","String")
+F.Data.DataTable.AddColumn("Nests","CurrentJob","String")
+
+F.Data.DataTable.FillFromDictionary("Nests","JobOp","WONumber","CurrentJob")
+F.Data.DataTable.FillFromDictionary("Nests","Flex","TaskName","Schedule")
+
+F.Data.Dictionary.Close("JobOp")
+F.Data.Dictionary.Close("Flex")
+
+F.Data.DataView.Create("Nests","VNest",22,"CurrentJob = 'Y' and Schedule = '-1'","")
+
+F.Data.DataView.ToDataTableDistinct("Nests","VNest","Task","TaskName",True)
+
+
+F.Data.DataView.Close("Nests","VNest")
+
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.Task.RowCount--,1)
+	F.Intrinsic.Control.CallSub(Build_FlexSched,"TaskName",V.DataTable.Task(V.Local.i).TaskName!FieldValtrim)
+F.Intrinsic.Control.Next(v.Local.i)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Get_Data_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST_FLEX.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Tab,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"Message",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Get_Data.End
+
+Program.Sub.Build_FlexSched.Start
+F.Intrinsic.Control.SetErrorHandler("Build_FlexSched_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sFilter.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.sScheduleNumber.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+v.Local.fSched.Declare(Float,0)
+V.Local.sDate.Declare(String,"")
+V.Local.iIncrement.Declare(Long,0)
+V.Local.sIncrement.Declare(String,"")
+V.Local.sJob.Declare(String,"")
+V.Local.sSuffix.Declare(String,"")
+V.Local.sSeq.Declare(String,"")
+V.Local.sMSeq.Declare(String,"")
+V.Local.sPart.Declare(String,"")
+V.Local.sWC.Declare(String,"")
+	
+'formatting current date.
+F.Intrinsic.String.Format(V.Ambient.Date,"MMDDYY",V.Local.sDate)
+
+F.Intrinsic.String.Build("TaskName = '{0}' and CurrentJob = 'Y'",V.Args.TaskName,V.Local.sFilter)
+
+F.Data.DataView.Create("Nests","VNest",22,V.Local.sFilter,"")
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.Intrinsic.Control.If(V.DataView.Nests!VNest.RowCount--,<>,-1)
+	V.Local.sSQL.Set("Select Last_PO_Num From Last_PO Where Ass_Sys = 'SCH' and Ass_Sub_Sys = 'OPT'")
+	F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSQL,V.Local.sScheduleNumber)
+	F.Intrinsic.String.Left(V.Local.sScheduleNumber,6,V.Local.sScheduleNumber)
+	
+	F.Intrinsic.Math.Add(V.Local.sScheduleNumber.Long,1,V.Local.fSched)
+	F.Global.General.SaveOption(400817,"0000","","","","",V.Local.fSched,"")
+	
+	F.Intrinsic.String.Build("Update Op_Header Set F_Numeric = '{0}' Where ID = 400817",V.Local.fSched,V.Local.sSql)
+	F.ODBC.Connection!Con.Execute(V.Local.sSql)
+	
+	V.Local.sScheduleNumber.Set(V.Local.fSched)
+	
+	f.Intrinsic.String.Format(v.Local.sScheduleNumber,"000000",v.Local.sScheduleNumber)
+	
+	F.Intrinsic.String.Build("Update Last_PO Set Last_PO_Num = '{0}' + substring(Last_PO_Num,7,1) Where Ass_Sys = 'SCH' and Ass_Sub_Sys = 'OPT'",V.Local.sScheduleNumber,V.Local.sSql)
+	F.ODBC.Connection!Con.Execute(V.Local.sSql)
+	
+	V.Local.iIncrement.Set(0)
+	
+	F.Data.DataView.ToDataTableDistinct("Nests","VNest","WONumber","WONumber")
+	F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.WONumber.RowCount--,1)
+		F.Intrinsic.Math.Add(V.Local.iIncrement,1,V.Local.iIncrement)
+        F.Intrinsic.String.Format(V.Local.iIncrement,"000000",V.Local.sIncrement)
+		F.Intrinsic.String.Split(V.DataTable.WONumber(V.Local.i).WONumber!FieldValTrim,"-",V.Local.sJob)
+        V.Local.sSuffix.Set(V.Local.sJob(1))
+        V.Local.sSeq.Set(V.Local.sJob(2))
+        'search for the material sequence
+	    F.Intrinsic.String.Build("SELECT TOP 1 SEQ, A.PART FROM V_JOB_OPERATIONS A LEFT Join V_Inventory_Mstr B On A.Part = B.Part WHERE JOB = '{0}' AND SUFFIX = '{1}' AND SEQ < '{2}' and LMO = 'M' and Product_Line = '20' ORDER BY SEQ ASC",V.Local.sJob,V.Local.sSuffix,V.Local.sSeq,V.Local.sSQL)
+	    F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSQL,V.Local.sMSeq)
+	    F.Intrinsic.String.Split(V.Local.sMSeq,"*!*",V.Local.sMSeq)
+	    V.Local.sMSeq.RedimPreserve(0,1)
+	    V.Local.sPart.Set(V.Local.sMSeq(1))
+	    V.Local.sMSeq.RedimPreserve(0,0)
+	    F.Intrinsic.String.RPad(V.Local.sMSeq,"0",6,V.Local.sMSeq) 
+	    F.Intrinsic.String.RPad(V.Local.sPart," ",20,V.Local.sPart)
+	    F.Intrinsic.String.Build("SELECT TOP 1 PART FROM V_JOB_OPERATIONS WHERE JOB = '{0}' AND SUFFIX = '{1}' AND SEQ = '{2}' ORDER BY SEQ ASC",V.Local.sJob,V.Local.sSuffix,V.Local.sSeq,V.Local.sSQL)
+	    F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSQL,V.Local.sWC)
+		F.Data.DataTable.AddRow("6000","SchedNumber",V.Local.sScheduleNumber,"SchedIncrement",V.Local.sIncrement,"MatWO",V.Local.sJob,"MatSuff",V.Local.sSuffix,"MatSeq",V.Local.sMSeq,"LabWO",V.Local.sJob,"LabSuff",V.Local.sSuffix,"LabSeq",V.Local.sSeq,"LabWOPart",V.Local.sPart,"LabWorkCenter",V.Local.sWC,"SchedFromDate",V.Local.sDate,"SchedToDate",V.Local.sDate,"SchedFromDueDate",V.Local.sDate,"SchedToDueDate",V.Local.sDate)
+	F.Intrinsic.Control.Next(V.Local.i)
+	
+	F.Intrinsic.Control.If(V.DataTable.6000.RowCount--,<>,-1)
+		F.Intrinsic.Control.CallSub(6000Sync)
+		F.Intrinsic.String.Build("Select Distinct Schedule From Job_Ct_Flx_Schd where Schedule = '{0}'",V.Local.sScheduleNumber,V.Local.sSql)
+		F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sSql)
+		F.Intrinsic.Control.If(V.Local.sSql.Trim,<>,"")
+			F.Data.DataTable.AddRow("TaskFlex","TaskName",V.Args.TaskName,"Schedule",V.Local.sScheduleNumber)
+			F.Data.DataTable.SaveToDB("TaskFlex","con","GCG_6319_Task_Flex","TaskName",256,"TaskName@!@TaskName*!*Schedule@!@Schedule")
+			F.Intrinsic.Control.CallSub(Issue_Material,"TaskName",V.Args.TaskName)
+			F.Data.DataTable.DeleteRow("TaskFlex")
+			F.Data.DataTable.AcceptChanges("TaskFlex")
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!Con.Close
+
+F.Data.DataView.Close("Nests","VNest")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Build_FlexSched_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST_FLEX.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Tab,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"Message",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Build_FlexSched.End
+
+Program.Sub.Exit.Start
+F.Intrinsic.Control.SetErrorHandler("Exit_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Exit_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.Exit.End
+
+Program.Sub.WriteError.Start
+F.Intrinsic.Control.SetErrorHandler("Exit_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.bRet.Declare(Boolean,False)
+
+F.Intrinsic.File.Exists(V.Global.sErrorFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet)
+	F.Intrinsic.File.Append2FileNewLine(V.Global.sErrorFile,V.Args.Message)
+F.Intrinsic.Control.Else
+	F.Intrinsic.File.String2File(V.Global.sErrorFile,V.Args.Message)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Exit_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.WriteError.End
+
+Program.Sub.Issue_Material.Start
+F.Intrinsic.Control.SetErrorHandler("Issue_Material_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.iC.Declare(Long,0)
+V.Local.sSql.Declare(String,"")
+V.Local.sFilter.Declare(String,"")
+V.Local.sJob.Declare(String,"")
+V.Local.sSuffix.Declare(String,"")
+V.Local.sLSeq.Declare(STring,"")
+V.Local.sMSeq.Declare(STring,"")
+v.Local.bCheck.Declare(Boolean,False)
+v.Local.sQtyIssue.Declare(String,"")
+V.Local.bRet.Declare(Boolean,False)
+V.Local.sRet.Declare(String,"")
+v.Local.sMOPEN.Declare(String,"")
+v.Local.iCountm.Declare(Long,0)
+v.Local.sBackupMOPEN.Declare(String,"")
+V.Local.iQ.Declare(Long,0)
+V.Local.fSF.Declare(Float,0)
+V.Local.fTemp.Declare(Float,0)
+
+F.Intrinsic.Control.If(V.DataTable.IssueMaterial.Exists,=,False)
+	'Create our Issue Material DT
+	f.Data.DataTable.Create("IssueMaterial",True)
+	f.Data.DataTable.AddColumn("IssueMaterial","Part","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Rev","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Loc","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Qty","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Lot","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Bin","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Heat","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Serial","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Job","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Suffix","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Seq","String")
+F.Intrinsic.Control.EndIf
+
+f.ODBC.Connection!conS.openconnection(V.Global.sCon)
+
+F.Intrinsic.String.Build("select Distinct b.TaskName,a.WONUMBER, a.programname, a.RepeatID , a.QTYINPROCESS, a.nestedarea, b.material from PIP a inner join Program b on a.programname = b.programname and a.RepeatID  = b.RepeatID Where b.TaskName = '{0}'",V.Args.TaskName,V.Local.sSql)
+f.Data.Datatable.CreateFromSQL("NestsIssue","conS",V.Local.sSql,True)
+F.ODBC.Connection!conS.Close
+
+F.Data.DataTable.AddColumn("NestsIssue","Bin",String)
+
+f.Data.Dictionary.CreateFromSQL("DefaultBin","Con","SELECT RTRIM(PART) AS PART, RTRIM(BIN) AS BIN FROM V_INVENTORY_MSTR Order by Part")
+f.Data.Dictionary.SetDefaultReturn("DefaultBin","")
+f.Data.DataTable.FillFromDictionary("NestsIssue","DefaultBin","MATERIAL","Bin")
+f.Data.Dictionary.Close("DefaultBin")
+f.Data.DataTable.AddExpressionColumn("NestsIssue","PartShort","String","SUBSTRING([MATERIAL] + '                    ',1,17)")
+f.Data.DataTable.AddExpressionColumn("NestsIssue","RevShort","String","SUBSTRING([MATERIAL] + '                    ',18,3)")
+F.Intrinsic.Control.If(V.DataTable.NestsIssue.RowCount--,<>,-1)
+	F.Data.DataView.Create("NestsIssue","Temp",22,"","")
+	F.Data.DataView.ToDataTableDistinct("NestsIssue","Temp","WONUM","WONUMBER")
+	F.Data.DataView.Close("NestsIssue","Temp")
+	F.Intrinsic.Control.For(V.Local.iC,0,V.DataTable.WONUM.RowCount--,1)
+		F.Intrinsic.String.Build("WONUMBER = '{0}'",V.DataTable.WONUM(V.Local.iC).WONUMBER!FieldValTrim,V.Local.sFilter)
+		F.Data.DataView.Create("NestsIssue","Temp",22,V.Local.sFilter,"")
+		F.Data.DataView.ToDataTable("NestsIssue","Temp","Temp",True)
+		F.Data.DataView.Close("NestsIssue","Temp")
+		F.Intrinsic.String.Split(V.DataTable.WONUM(V.Local.iC).WONUMBER!FieldValTrim,"-",V.Local.sJob)
+		
+		V.Local.sSuffix.Set(V.Local.sJob(1))
+		f.Intrinsic.String.Trim(v.Local.sSuffix,v.Local.sSuffix)
+		V.Local.sLSeq.Set(V.Local.sJob(2))
+		F.Intrinsic.String.Build("Select Top 1 Seq From V_Job_Operations Where Job = '{0}' and Suffix = '{1}' and Operation = '{2}' and LMO = 'M' Order by Seq",V.Local.sJob,V.Local.sSuffix,V.Local.sLSeq,V.Local.sSql)
+		F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sMSeq)
+
+		f.Data.DataTable.AddExpressionColumn("Temp","AREA","Float","CONVERT([NESTEDAREA], 'System.Double')")
+		f.Data.DataTable.AddExpressionColumn("Temp","QTY","Float","CONVERT([QTYINPROCESS],'System.Double')")
+		V.Local.fSF.Set(0)
+		V.Local.fTemp.Set(0)
+		F.Intrinsic.Control.For(V.Local.iQ,0,V.DataTable.Temp.RowCount--,1)
+			F.Intrinsic.Math.Mult(V.DataTable.Temp(V.Local.iQ).AREA!FieldValFloat,V.DataTable.Temp(V.Local.iQ).QTY!FieldValFloat,V.Local.fTemp)
+			F.Intrinsic.Math.Add(V.Local.fSF,V.Local.fTemp,V.Local.fSF)
+		F.Intrinsic.Control.Next(V.Local.iQ)
+		F.Intrinsic.Math.Div(V.Local.fSF,144,V.Local.fSF)
+
+		f.Intrinsic.String.ConvertToString(V.Local.fSF,v.Local.sQtyIssue)
+		f.Intrinsic.String.IsInString(v.Local.sQtyIssue,".",true,v.Local.bCheck)
+		f.Intrinsic.Control.If(v.Local.bCheck,<>,True)
+			f.Intrinsic.String.Build("{0}.0",v.Local.sQtyIssue.Trim,v.Local.sQtyIssue)
+		F.Intrinsic.Control.Else
+			F.Intrinsic.String.Format(V.Local.sQtyIssue,"0.0000",V.Local.sQtyIssue)
+		f.Intrinsic.Control.EndIf
+		F.Intrinsic.String.Build("Select Flag_Closed From Job_Operations Where Job = '{0}' and Suffix = '{1}' and Seq = '{2}'",V.Local.sJob,V.Local.sSuffix,V.Local.sMSeq,V.Local.sSql)
+		F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sSql)
+		F.Intrinsic.Control.If(V.Local.sSql.Trim,<>,"Y")
+			f.Data.DataTable.AddRow("IssueMaterial","Part",v.DataTable.Temp(v.DataTable.Temp.RowCount--).PartShort!FieldValTrim,"Rev",v.DataTable.Temp(v.DataTable.Temp.RowCount--).RevShort!FieldValTrim,"Qty",v.Local.sQtyIssue.trim,"Bin",v.DataTable.Temp(v.DataTable.Temp.RowCount--).Bin!FieldValTrim,"Job",V.Local.sJob,"Suffix",V.Local.sSuffix,"Seq",V.Local.sMSeq)
+		F.Intrinsic.Control.EndIf
+		F.Data.DataTable.Close("Temp")
+		F.Intrinsic.String.Build("Update Job_Operations Set Flag_Closed = 'Y' Where Job = '{0}' and Suffix = '{1}' and Operation = '{2}' and LMO = 'M' and Seq <> '{3}'",V.Local.sJob,V.Local.sSuffix,V.Local.sLSeq,V.Local.sMSeq,V.Local.sSql)
+		F.ODBC.Connection!con.Execute(V.Local.sSql)
+	F.Intrinsic.Control.Next(V.Local.iC)
+F.Intrinsic.Control.EndIf
+F.Data.DataTable.Close("NestsIssue")
+
+F.Intrinsic.Control.If(V.DataTable.IssueMaterial.RowCount--,<>,-1)
+	'Create a DataView just because we have to
+	f.Data.DataView.Create("IssueMaterial","IssueView",22,"","")
+	'IssueMaterial DT now has all of our Data to issue.
+	f.Intrinsic.String.Build("{0}\L{1}{2}MOPEN.txt",v.Caller.FilesDir,v.Caller.CompanyCode,v.Caller.Terminal,v.Local.sMOPEN)
+'	f.Data.DataTable.SaveToCSV("IssueMaterial",v.Local.sMOPEN,False)
+	f.Data.DataView.ToString("IssueMaterial","IssueView",",",v.Ambient.NewLine,v.Local.sRet)
+	F.Data.DataView.Close("IssueMaterial","IssueView")
+	f.Intrinsic.File.String2File(v.Local.sMOPEN,v.Local.sRet)
+	'Create Backup MOPEN file
+	f.Intrinsic.String.Build("{0}\L{1}{2}MOPEN.txt.{3}{4}",v.Caller.FilesDir,v.Caller.CompanyCode,v.Caller.Terminal,v.Ambient.Date.FormatMMDDYYYY,v.Ambient.Now.FormatHHNNSS,v.Local.sBackupMOPEN)
+'	f.Data.DataTable.SaveToCSV("IssueMaterial",v.Local.sBackupMOPEN,False)
+	f.Intrinsic.File.String2File(v.Local.sBackupMOPEN,v.Local.sRet)
+	
+	'Now we can Issue the lines.
+	f.Intrinsic.String.Build("L{0}{1}MOPEN.txt",v.Caller.CompanyCode,v.Caller.Terminal,v.Local.sMOPEN)
+	
+	f.Global.General.CallWrapperSync(450100,v.Local.sMOPEN)
+	
+	'now that issued the material we need to go back and close all of the lines.
+	f.Intrinsic.Control.For(v.Local.iCountm,0,v.DataTable.IssueMaterial.RowCount--,1)
+		'we need to close each job suffix seq in this table.
+		f.Intrinsic.String.Build("UPDATE JOB_OPERATIONS SET FLAG_CLOSED = 'Y' WHERE JOB = '{0}' AND SUFFIX = '{1}' AND SEQ = '{2}' ",V.DataTable.IssueMaterial(V.Local.iCountm).Job!FieldValTrim,V.DataTable.IssueMaterial(V.Local.iCountm).Suffix!FieldValTrim,V.DataTable.IssueMaterial(V.Local.iCountm).Seq!FieldValTrim,v.Local.sSQL)
+		f.ODBC.Connection!Con.Execute(v.Local.sSQL)
+	f.Intrinsic.Control.Next(v.Local.iCountm)
+F.Intrinsic.Control.EndIf
+
+F.Data.DataTable.DeleteRow("IssueMaterial")
+F.Data.DataTable.AcceptChanges("IssueMaterial")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Issue_Material_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST_FLEX.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.Tab,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(WriteError,"Message",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Issue_Material.End
