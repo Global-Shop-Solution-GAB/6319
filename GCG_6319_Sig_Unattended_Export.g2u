@@ -1,0 +1,493 @@
+Program.Sub.Preflight.Start
+V.Global.sInputPath.Declare(String,"")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+'commeting out for testing
+F.Intrinsic.Control.If(V.Ambient.IsInTaskScheduler)
+	F.Intrinsic.Control.CallSub(IsRunning)
+	F.Intrinsic.Control.CallSub(PreFolderCheck)
+	F.Intrinsic.Control.CallSub(Get_Data)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(Exit)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.Exit.Start
+F.Intrinsic.Control.SetErrorHandler("Exit_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sFile.Declare(String)
+V.Local.bRet.Declare(Boolean,False)
+
+f.Intrinsic.String.Build("{0}\6319_Exp_{1}.pid",v.Caller.FilesDir,V.Caller.CompanyCode,v.Local.sFile)
+F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet,=,True)
+	F.Intrinsic.File.DeleteFile(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Exit_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.Exit.End
+
+Program.Sub.Log_Error.Start
+F.Intrinsic.Control.SetErrorHandler("Log_Error_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sFile.Declare(String,"")
+V.Local.bRet.Declare(Boolean,False)
+
+F.Intrinsic.Control.If(V.Caller.GlobalDir.Right1,=,"\")
+	F.Intrinsic.String.Build("{0}Custom",V.Caller.GlobalDir,V.Local.sFile)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("{0}\Custom",V.Caller.GlobalDir,V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.DirExists(V.Local.sFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet,=,False)
+	F.Intrinsic.File.CreateDir(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\6319",V.Local.sFile,V.Local.sFile)
+
+F.Intrinsic.File.DirExists(V.Local.sFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet,=,False)
+	F.Intrinsic.File.CreateDir(V.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("{0}\{1}6319UnattendedExportLogFile.txt",V.Local.sFile,V.Caller.CompanyCode,V.Local.sFile)
+
+F.Intrinsic.File.Exists(V.Local.sFile,V.Local.bRet)
+
+F.Intrinsic.Control.If(V.Local.bRet)
+	F.Intrinsic.String.Build("{0}{1}",V.Ambient.NewLine,V.Args.Error,V.Local.sError)
+	F.Intrinsic.File.Append2File(V.Local.sFile,V.Local.sError)
+F.Intrinsic.Control.Else
+	F.Intrinsic.File.String2File(V.Local.sFile,V.Args.Error)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.CallSub(Exit)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Log_Error_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.Log_Error.End
+
+Program.Sub.Get_Data.Start
+F.Intrinsic.Control.SetErrorHandler("Get_Data_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+v.Local.sSql.Declare(String,"")
+v.Local.iCount.Declare(Long,0)
+V.Local.sWorkcenters.Declare(String,"")
+V.Local.sExp.Declare(String,"")
+V.Local.sCad.Declare(String,"")
+V.Local.sCode.Declare(String,"")
+V.Local.sFGPart.Declare(String,"")
+V.Local.sDate.Declare(String,"")
+V.Local.iQty.Declare(Long,0)
+V.Local.i.Declare(Long,0)
+
+f.Data.DataTable.Create("JobData",true)
+f.Data.DataTable.AddColumn("JobData","SELECTED","Boolean")
+f.Data.DataTable.AddColumn("JobData","EXPORTED","String")
+f.Data.DataTable.AddColumn("JobData","JOB","String")
+f.Data.DataTable.AddColumn("JobData","SUFFIX","String")
+f.Data.DataTable.AddColumn("JobData","SEQ","String")
+f.Data.DataTable.AddColumn("JobData","FGPART","String")
+F.Data.DataTable.AddColumn("JobData","Location","String")
+f.Data.DataTable.AddColumn("JobData","DESCRIPTION","String")
+f.Data.DataTable.AddColumn("JobData","FLAG_WO_RELEASED","String")
+f.Data.DataTable.AddColumn("JobData","DATE_DUE","Date")
+f.Data.DataTable.AddColumn("JobData","DATE_START","Date")
+f.Data.DataTable.AddColumn("JobData","CUSTOMER","String")
+f.Data.DataTable.AddColumn("JobData","NAME_CUSTOMER","String")
+f.Data.DataTable.AddColumn("JobData","WC","String")
+f.Data.DataTable.AddColumn("JobData","RAW_MAT","String")
+f.Data.DataTable.AddColumn("JobData","ITEMNAME","String")
+f.Data.DataTable.AddColumn("JobData","ITEMNAME_SEQ","String")
+f.Data.DataTable.AddColumn("JobData","ITEMNAME_QTY","Float")
+f.Data.DataTable.AddColumn("JobData","THICKNESS","String")
+f.Data.DataTable.AddColumn("JobData","CODE_SORT","String")
+f.Data.DataTable.AddColumn("JobData","PRIORITY","String")
+f.Data.DataTable.AddColumn("JobData","DEPARTMENT","String")
+f.Data.DataTable.AddColumn("JobData","SALES_ORDER","String")
+f.Data.DataTable.AddColumn("JobData","SALES_ORDER_LINE","String")
+f.Data.DataTable.AddColumn("JobData","JSS","String")
+f.Data.DataTable.AddColumn("JobData","CUSTPO","String")
+f.Data.DataTable.AddColumn("JobData","BDATE","Date")
+f.Data.DataTable.AddColumn("JobData","DATE_OPENED","Date")
+F.Data.DataTable.AddColumn("JobData", "DOCUMENT_CONTROL", "String", "")
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.ODBC.Connection!Con.ExecuteAndReturn("select Machine from Workcenters where Nesting_Intrfc = 'Y'", V.Local.sWorkcenters)
+F.Intrinsic.String.Replace(V.Local.sWorkcenters, "#$#", "','", V.Local.sWorkcenters)
+
+f.Intrinsic.String.Build("Select distinct CAST(0 as bit) as SELECTED,A.Job, ltrim(rtrim(sfx)) as Suffix,Right(JSS,6) as seq, SAR as WC,ROG as Department, JSS, Part as FGPart, Location, FLAG_WO_RELEASED, Priority, Customer, Date_Due, Date_Due as Date_Start, Description, Date_Opened, IF(Sales_Order = '0000000','',Sales_Order) as Sales_Order, IF(Sales_Order_Line = '000','',Sales_Order_Line) as Sales_Order_Line from APSV3_UBDETAIL A Left Join V_Job_Header B on A.Job = B.Job and A.Sfx = B.Suffix where SEQ < '995000' and SAR in ('{0}') and FLAG_WO_RELEASED = 'Y' and Jss not in (Select JSS from GCG_6319_JSS_Export where exported = 'Y')",V.Local.sWorkcenters,v.Local.sSQL)
+
+f.data.DataTable.CreateFromSQL("JobDataTemp","Con",v.Local.sSQL, True)
+F.Data.DataTable.AddColumn("JobDataTemp","Units",Float)
+F.Data.DataTable.AddColumn("JobDataTemp","BDATE",Date)
+
+F.Data.Dictionary.CreateFromSQL("Units","con","select Job+if(suffix is null,'   ',Suffix)+Seq,Units_Open from V_Job_Operations")
+F.Data.Dictionary.SetDefaultReturn("Units","0")
+
+F.Data.DataTable.FillFromDictionary("JobDataTemp","Units","Jss","Units")
+F.Data.Dictionary.Close("Units")
+
+F.Data.Dictionary.CreateFromSQL("DStart","con","select Job+if(suffix is null,'   ',Suffix)+Seq,Date_Start from V_Job_Operations")
+F.Data.Dictionary.SetDefaultReturn("DStart","01/01/1900")
+
+F.Data.DataTable.FillFromDictionary("JobDataTemp","DStart","Jss","Date_Start")
+F.Data.Dictionary.Close("DStart")
+
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.JobDataTemp.RowCount--,1)
+	F.Intrinsic.String.Build("Select Top 1 b.BDate from APSV3_UBDETAIL b Where b.Jss = '{0}' Order by b.BNo Desc",V.DataTable.JobDataTemp(V.Local.i).JSS!FieldValTrim,V.Local.sSql)
+	F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sDate)
+	F.Intrinsic.Control.If(V.Local.sDate,=,"")
+		V.Local.sDate.Set("01/01/1900")
+	F.Intrinsic.Control.EndIf
+	F.Data.DataTable.SetValue("JobDataTemp",V.Local.i,"BDate",V.Local.sDate)
+F.Intrinsic.Control.Next(V.Local.i)
+
+'F.Data.DataTable.Clone("JobData","TempJobData",True)
+
+F.Intrinsic.Control.For(V.Local.iCount,0,V.DataTable.JobDataTemp.RowCount--,1)
+	'load MS tied to the nesting labor steps
+	F.Intrinsic.String.Build("Select A.Part as Material, Seq, rtrim(B.Code_Sort) as C_S, Hours_Estimated as Qty, C.Thickness, Product_Line From V_Job_Operations A Left Join V_Inventory_Mstr B on A.Part = B.Part and A.Locn = B.Location Left Join V_Inventory_Mst3 C on A.Part = C.Part and A.Locn = C.Location Where A.Job = '{0}' and A.Suffix = '{1}' and LMO = 'M' and A.Operation = '{2}'",V.DataTable.JobDataTemp(V.Local.icount).Job!FieldValTrim,V.DataTable.JobDataTemp(V.Local.icount).Suffix!FieldValTrim,V.DataTable.JobDataTemp(V.Local.icount).Seq!FieldValTrim,V.Local.sSql)
+	F.Data.DataTable.CreateFromSQL("Mat","con",V.Local.sSql,True)
+'	F.Data.DataView.Create("Mat","ShtMat",22,"C_S = 'HP' and Product_Line = '20'","")
+	'filtering out multple material scenario.  here the line with pl 20 is the material and pl 99 is what needs to be cut
+	F.Data.DataView.Create("Mat","ShtMat",22,"Product_Line = '20'","")
+	F.Data.DataView.Create("Mat","VMat",22,"Product_Line = '99'","")
+	F.Intrinsic.Control.If(V.DataView.Mat!VMat.RowCount--,<>,-1,"AND",V.DataView.Mat!ShtMat.RowCount--,<>,-1)
+		F.Intrinsic.Control.For(V.Local.i,0,V.DataView.Mat!VMat.RowCount--,1)
+			F.Intrinsic.String.Build("Select Exported From GCG_6319_Jss_Export Where Exported = 'Y' and Jss = '{0}' and MSeq = '{1}'",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,V.DataView.Mat!VMat(V.Local.i).Seq!FieldValTrim,V.Local.sSql)
+			F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sExp)
+			F.Intrinsic.Control.If(V.Local.sExp.Trim,=,"")
+				V.Local.sExp.Set("N")
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Ceiling(V.DataView.Mat!VMat(V.Local.i).Qty!FieldVal,V.Local.iQty)
+				F.Intrinsic.Control.If(V.Local.sExp,=,"N")
+					F.Data.DataTable.AddRow("JobData","Selected",True,"Job",V.DataTable.JobDataTemp(V.Local.icount).Job!FieldValTrim,"Suffix",V.DataTable.JobDataTemp(V.Local.icount).Suffix!FieldValTrim,"Seq",V.DataTable.JobDataTemp(V.Local.icount).Seq!FieldValTrim,"WC",V.DataTable.JobDataTemp(V.Local.icount).WC!FieldValTrim,"Department",V.DataTable.JobDataTemp(V.Local.icount).Department!FieldValTrim,"Exported",V.Local.sExp,"RAW_MAT",V.DataView.Mat!ShtMat(V.DataView.Mat!ShtMat.RowCount--).Material!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Jss",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,"BDATE",V.DataTable.JobDataTemp(V.Local.icount).BDate!FieldVal,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Location",V.DataTable.JobDataTemp(V.Local.icount).Location!FieldValTrim,"FLAG_WO_RELEASED",V.DataTable.JobDataTemp(V.Local.icount).FLAG_WO_RELEASED!FieldValTrim,"Thickness",V.DataView.Mat!VMat(V.Local.i).Thickness!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Priority",V.DataTable.JobDataTemp(V.Local.icount).Priority!FieldValTrim,"Customer",V.DataTable.JobDataTemp(V.Local.icount).Customer!FieldValTrim,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Date_Due",V.DataTable.JobDataTemp(V.Local.icount).Date_Due!FieldVal,"Date_Start",V.DataTable.JobDataTemp(V.Local.icount).Date_Start!FieldVal,"Description",V.DataTable.JobDataTemp(V.Local.icount).Description!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Date_Opened",V.DataTable.JobDataTemp(V.Local.icount).Date_Opened!FieldVal,"Sales_Order",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order!FieldValTrim,"Sales_Order_Line",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order_Line!FieldValTrim,"ITEMNAME",V.DataView.Mat!VMat(V.Local.i).Material!FieldValTrim,"ITEMNAME_QTY",V.Local.iQty,"CODE_SORT",V.DataView.Mat!VMat(V.Local.i).C_S!FieldValTrim,"ITEMNAME_SEQ",V.DataView.Mat!VMat(V.Local.i).Seq!FieldValTrim)
+				F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Next(V.Local.i)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Control.If(V.DataView.Mat!ShtMat.RowCount--,<>,-1)
+			'here will catch if there is only 1 material line with a pl of 20 
+			'in this scenario query the user field table and get the cad id in user field 1 (serching with FG Part on the Job-Suffix) and pass that as the item to be made
+			F.Intrinsic.Control.For(V.Local.i,0,V.DataView.Mat!ShtMat.RowCount--,1)
+				F.Intrinsic.String.Build("Select Exported From GCG_6319_Jss_Export Where Exported = 'Y' and Jss = '{0}' and MSeq = '{1}'",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,V.DataView.Mat!ShtMat(V.Local.i).Seq!FieldValTrim,V.Local.sSql)
+				F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sExp)
+				F.Intrinsic.String.Build("Select Top 1 User1 From GAB_4912_USER_FIELDS Where Part = '{0}'",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,V.Local.sSql)
+				F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sCad)
+				F.Intrinsic.String.RPad(V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim," ",20,V.Local.sFGPart)
+				F.Intrinsic.String.RPad(v.Local.sCad," ",17,V.Local.sCad)
+				F.Intrinsic.String.Build("{0}{1}",V.Local.sCad,V.Local.sFGPart.Right3,V.Local.sCad)
+				F.Intrinsic.String.Build("Select Top 1 Code_Sort From V_Inventory_Mstr Where Part = '{0}'",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,V.Local.sSql)
+				F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sCode)
+				F.Intrinsic.Control.If(V.Local.sExp.Trim,=,"")
+					V.Local.sExp.Set("N")
+				F.Intrinsic.Control.EndIf
+				F.Intrinsic.Math.Ceiling(V.DataTable.JobDataTemp(V.Local.icount).Units!FieldVal,V.Local.iQty)
+					F.Intrinsic.Control.If(V.Local.sExp,=,"N")
+						F.Data.DataTable.AddRow("JobData","Selected",True,"Job",V.DataTable.JobDataTemp(V.Local.icount).Job!FieldValTrim,"Suffix",V.DataTable.JobDataTemp(V.Local.icount).Suffix!FieldValTrim,"Seq",V.DataTable.JobDataTemp(V.Local.icount).Seq!FieldValTrim,"WC",V.DataTable.JobDataTemp(V.Local.icount).WC!FieldValTrim,"Department",V.DataTable.JobDataTemp(V.Local.icount).Department!FieldValTrim,"Exported",V.Local.sExp,"RAW_MAT",V.DataView.Mat!ShtMat(V.DataView.Mat!ShtMat.RowCount--).Material!FieldValTrim)
+						F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Jss",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,"BDATE",V.DataTable.JobDataTemp(V.Local.icount).BDate!FieldVal,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Location",V.DataTable.JobDataTemp(V.Local.icount).Location!FieldValTrim,"FLAG_WO_RELEASED",V.DataTable.JobDataTemp(V.Local.icount).FLAG_WO_RELEASED!FieldValTrim,"Thickness",V.DataView.Mat!ShtMat(V.Local.i).Thickness!FieldValTrim)
+						F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Priority",V.DataTable.JobDataTemp(V.Local.icount).Priority!FieldValTrim,"Customer",V.DataTable.JobDataTemp(V.Local.icount).Customer!FieldValTrim,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Date_Due",V.DataTable.JobDataTemp(V.Local.icount).Date_Due!FieldVal,"Date_Start",V.DataTable.JobDataTemp(V.Local.icount).Date_Start!FieldVal,"Description",V.DataTable.JobDataTemp(V.Local.icount).Description!FieldValTrim)
+						F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Date_Opened",V.DataTable.JobDataTemp(V.Local.icount).Date_Opened!FieldVal,"Sales_Order",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order!FieldValTrim,"Sales_Order_Line",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order_Line!FieldValTrim,"ITEMNAME",V.Local.sCad.Trim,"ITEMNAME_QTY",V.Local.iQty,"CODE_SORT",V.Local.sCode,"ITEMNAME_SEQ",V.DataView.Mat!ShtMat(V.Local.i).Seq!FieldValTrim)
+					F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.Next(V.Local.i)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	F.Data.DataView.Close("Mat","VMat")
+	F.Data.DataView.Close("Mat","ShtMat")
+
+	'here will catch if there is only 1 material line with a pl of AA, AG, EL, IC, MD, MH, OF, SF, TP 
+	'in this scenario query the user field table and get the cad id in user field 1 (serching with FG Part on the Job-Suffix) and pass that as the item to be made
+	F.Data.DataView.Create("Mat","ShtMat",22,"Product_Line = 'AA' OR Product_Line = 'AG' OR Product_Line = 'EL' OR Product_Line = 'IC' OR Product_Line = 'MD' OR Product_Line = 'MH' OR Product_Line = 'OF' OR Product_Line = 'SF' OR Product_Line = 'TP'","")
+	F.Intrinsic.Control.If(V.DataView.Mat!ShtMat.RowCount--,<>,-1)
+		F.Intrinsic.Control.For(V.Local.i,0,V.DataView.Mat!ShtMat.RowCount--,1)
+		
+			F.Intrinsic.String.Build("Select Exported From GCG_6319_Jss_Export Where Exported = 'Y' and Jss = '{0}' and MSeq = '{1}'",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,V.DataView.Mat!ShtMat(V.Local.i).Seq!FieldValTrim,V.Local.sSql)
+			F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sExp)
+			F.Intrinsic.String.Build("Select Top 1 User1 From GAB_4912_USER_FIELDS Where Part = '{0}'",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,V.Local.sSql)
+			F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sCad)
+			F.Intrinsic.String.RPad(V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim," ",20,V.Local.sFGPart)
+			F.Intrinsic.String.RPad(v.Local.sCad," ",17,V.Local.sCad)
+			F.Intrinsic.String.Build("{0}{1}",V.Local.sCad,V.Local.sFGPart.Right3,V.Local.sCad)
+			F.Intrinsic.String.Build("Select Top 1 Code_Sort From V_Inventory_Mstr Where Part = '{0}'",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,V.Local.sSql)
+			F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.sCode)
+			F.Intrinsic.Control.If(V.Local.sExp.Trim,=,"")
+				V.Local.sExp.Set("N")
+			F.Intrinsic.Control.EndIf
+			F.Intrinsic.Math.Ceiling(V.DataTable.JobDataTemp(V.Local.icount).Units!FieldVal,V.Local.iQty)
+				F.Intrinsic.Control.If(V.Local.sExp,=,"N")
+					F.Data.DataTable.AddRow("JobData","Selected",True,"Job",V.DataTable.JobDataTemp(V.Local.icount).Job!FieldValTrim,"Suffix",V.DataTable.JobDataTemp(V.Local.icount).Suffix!FieldValTrim,"Seq",V.DataTable.JobDataTemp(V.Local.icount).Seq!FieldValTrim,"WC",V.DataTable.JobDataTemp(V.Local.icount).WC!FieldValTrim,"Department",V.DataTable.JobDataTemp(V.Local.icount).Department!FieldValTrim,"Exported",V.Local.sExp,"RAW_MAT",V.DataView.Mat!ShtMat(V.DataView.Mat!ShtMat.RowCount--).Material!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Jss",V.DataTable.JobDataTemp(V.Local.icount).Jss!FieldValTrim,"BDATE",V.DataTable.JobDataTemp(V.Local.icount).BDate!FieldVal,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Location",V.DataTable.JobDataTemp(V.Local.icount).Location!FieldValTrim,"FLAG_WO_RELEASED",V.DataTable.JobDataTemp(V.Local.icount).FLAG_WO_RELEASED!FieldValTrim,"Thickness",V.DataView.Mat!ShtMat(V.Local.i).Thickness!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Priority",V.DataTable.JobDataTemp(V.Local.icount).Priority!FieldValTrim,"Customer",V.DataTable.JobDataTemp(V.Local.icount).Customer!FieldValTrim,"FGPART",V.DataTable.JobDataTemp(V.Local.icount).FGPart!FieldValTrim,"Date_Due",V.DataTable.JobDataTemp(V.Local.icount).Date_Due!FieldVal,"Date_Start",V.DataTable.JobDataTemp(V.Local.icount).Date_Start!FieldVal,"Description",V.DataTable.JobDataTemp(V.Local.icount).Description!FieldValTrim)
+					F.Data.DataTable.SetValue("JobData",V.DataTable.JobData.RowCount--,"Date_Opened",V.DataTable.JobDataTemp(V.Local.icount).Date_Opened!FieldVal,"Sales_Order",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order!FieldValTrim,"Sales_Order_Line",V.DataTable.JobDataTemp(V.Local.icount).Sales_Order_Line!FieldValTrim,"ITEMNAME",V.Local.sCad.Trim,"ITEMNAME_QTY",V.Local.iQty,"CODE_SORT",V.Local.sCode,"ITEMNAME_SEQ",V.DataView.Mat!ShtMat(V.Local.i).Seq!FieldValTrim)
+				F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Next(V.Local.i)
+	F.Intrinsic.Control.EndIf
+	F.Data.DataView.Close("Mat","ShtMat")
+	F.Data.DataTable.Close("Mat")
+F.Intrinsic.Control.Next(V.Local.iCount)
+
+'F.Data.DataTable.Merge("TempJobData","JobData",False,2)
+
+'F.Data.DataTable.Close("TempJobData")
+
+F.Data.DataTable.Close("JobDataTemp")
+
+'filling in customer name
+F.Data.Dictionary.CreateFromSQL("Cust","con","Select Customer, Name_Customer From V_Customer_Master")
+F.Data.Dictionary.SetDefaultReturn("Cust"," ")
+F.Data.DataTable.FillFromDictionary("JobData","Cust","Customer","Name_Customer")
+F.Data.Dictionary.Close("Cust")
+'filling in customer po
+F.Data.Dictionary.CreateFromSQL("CPO","con","Select Order_No as sales_Order, Customer_PO as CustPO From V_Order_Header")
+F.Data.Dictionary.SetDefaultReturn("CPO"," ")
+F.Data.DataTable.FillFromDictionary("JobData","CPO","sales_Order","CustPO")
+F.Data.Dictionary.Close("CPO")
+
+F.ODBC.Connection!Con.Close
+
+F.Intrinsic.Control.If(V.DataTable.JobData.RowCount--,<>,-1)
+	F.Intrinsic.Control.CallSub(Export)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Get_Data_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Get_Data.End
+
+Program.Sub.Export.Start
+F.Intrinsic.Control.SetErrorHandler("Export_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.sSeq.Declare(String,"")
+V.Local.sOrder.Declare(String,"")
+V.Local.sSuffix.Declare(String,"")
+V.Local.sData.Declare(String,"")
+V.Local.sFields.Declare(String,"TransType*!*District*!*TransID*!*OrderNo*!*ItemName*!*Qty*!*Material*!*Thickness*!*DueDate*!*Customer*!*DwgNumber*!*Priority*!*ProgBy*!*Filename*!*Length*!*Width*!*Remark*!*RevNumber*!*Cost*!*HeatNumber*!*ItemType*!*OnHold*!*TypeDescr*!*BinNumber*!*Location*!*Mill*!*PrimeCode*!*ItemData1*!*ItemData2*!*ItemData3*!*ItemData4*!*OrderShape*!*ProgramName*!*ProgramRepeat*!*BatchFile*!*Process*!*StringData1*!*StringData2*!*StringData3*!*StringData4*!*StringData5*!*StringData6*!*StringData7*!*StringData8*!*Param1*!*Param2*!*Param3*!*Param4*!*Param5*!*Param6*!*Param7*!*Param8*!*IDNegTol*!*IDPosTol*!*ODNegTol*!*ODPosTol*!*ItemData5*!*ItemData6*!*ItemData7*!*ItemData8*!*ItemData9*!*ItemData10*!*ItemData11*!*ItemData12*!*ItemData13*!*ItemData14*!*ErrorTag*!*ItemID*!*PluginTag*!*ItemData15*!*ItemData16*!*ItemData17*!*ItemData18*!*SalesRep*!*DueDateFormula*!*TaxRate*!*StartDate*!*EndDate*!*TransPriority")
+V.Local.sFileName.Declare(String,"")
+V.Local.sDate.Declare(String,"")
+V.Local.sTime.Declare(String,"")
+V.Local.sItemName.Declare(String,"")
+V.Local.sItemRev.Declare(String,"")
+V.Local.sTemp.Declare(String,"")
+
+F.Intrinsic.String.Format(V.Ambient.Date,"MMDDYY",V.Local.sDate)
+F.Intrinsic.String.Format(V.Ambient.Time,"hHnNsS",V.Local.sTime)
+F.Intrinsic.String.Build("{0}-{1}",V.Local.sDate,V.Local.sTime,V.Local.sDate)
+
+F.Intrinsic.Control.If(V.Global.sInputPath.Right1,=,"\")
+	F.Intrinsic.String.Build("{0}SigmaNest{1}.csv",V.Global.sInputPath,V.Local.sDate,V.Local.sFileName)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("{0}\SigmaNest{1}.csv",V.Global.sInputPath,V.Local.sDate,V.Local.sFileName)
+F.Intrinsic.Control.EndIf
+
+'for testing
+'F.Intrinsic.String.Build("{0}\Custom\6319\SigmaNest{1}.csv",V.Caller.GlobalDir,V.Local.sDate,V.Local.sFileName)
+
+F.Data.DataView.Create("JobData","VJobData",22,"","")
+
+F.Intrinsic.Control.If(V.DataView.JobData!VJobData.RowCount--,<>,-1)
+	F.Data.DataTable.Create("Sigmanest",True)
+	F.Intrinsic.String.Split(V.Local.sFields,"*!*",V.Local.sTemp)
+	F.Intrinsic.Control.For(V.Local.i,0,V.Local.sTemp.UBound,1)
+		f.Data.DataTable.AddColumn("Sigmanest",V.Local.sTemp(V.Local.i).Trim,"String")
+	F.Intrinsic.Control.Next(V.Local.i)
+
+	'Getting Materials for Selected Eported JSS
+	F.Intrinsic.Control.For(V.Local.i,0,V.DataView.JobData!VJobData.RowCount--,1)
+		F.Intrinsic.String.LPad(V.DataView.JobData!VJobData(V.Local.i).Seq!FieldValTrim,"0",6,V.Local.sSeq)
+		F.Intrinsic.String.RPad(V.DataView.JobData!VJobData(V.Local.i).Suffix!FieldValTrim," ",3,V.Local.sSuffix)
+		F.Intrinsic.String.Build("{0}-{1}-{2}",V.DataView.JobData!VJobData(V.Local.i).Job!FieldValTrim,V.Local.sSuffix,V.Local.sSeq,V.Local.sOrder)
+		F.Intrinsic.String.RPad(V.DataView.JobData!VJobData(V.Local.i).ITEMNAME!FieldValTrim," ",20,V.Local.sItemName)
+		F.Intrinsic.String.Right(V.Local.sItemName,3,V.Local.sItemRev)
+		F.Intrinsic.String.Left(V.Local.sItemName,17,V.Local.sItemName)
+		F.Data.DataTable.AddRow("Sigmanest","TransType","SN84","District","2","OrderNO",V.Local.sOrder,"Material",V.DataView.JobData!VJobData(V.Local.i).Raw_Mat!FieldValTrim,"ItemName",V.Local.sItemName.Trim,"Thickness",V.DataView.JobData!VJobData(V.Local.i).Thickness!FieldValTrim,"DueDate",V.DataView.JobData!VJobData(V.Local.i).Date_Start!FieldValTrim,"RevNumber",V.Local.sItemRev.Trim)
+		F.Data.DataTable.SetValue("Sigmanest",V.DataTable.Sigmanest.RowCount--,"Qty",V.DataView.JobData!VJobData(V.Local.i).ItemName_Qty!FieldValFloat,"Customer",V.DataView.JobData!VJobData(V.Local.i).Customer!FieldValTrim,"Priority",V.DataView.JobData!VJobData(V.Local.i).Priority!FieldValTrim,"Process",V.DataView.JobData!VJobData(V.Local.i).WC!FieldValTrim)
+
+	F.Intrinsic.Control.Next(V.Local.i)
+F.Intrinsic.Control.EndIf
+
+'creating file for sigmanest export
+F.Intrinsic.Control.If(V.DataTable.Sigmanest.RowCount--,<>,-1)
+	F.Data.DataView.Create("Sigmanest","VSigmanNest",22,"","")
+	F.Data.DataView.ToString("Sigmanest","VSigmanNest",V.Local.sFields,",",V.Ambient.NewLine,V.Local.sData)
+	F.data.DataView.Close("Sigmanest","VSigmanNest")
+	F.Intrinsic.String.Replace(V.Local.sFields,"*!*",",",V.Local.sFields)
+	F.Intrinsic.String.Build("{0}{1}{2}",V.Local.sFields,V.Ambient.NewLine,V.Local.sData,V.Local.sData)
+	F.Intrinsic.File.String2File(V.Local.sFileName,V.Local.sData)
+	'commenting out for testing
+	F.Intrinsic.Control.CallSub(UpdateXP)
+F.Intrinsic.Control.EndIf
+
+'Marking Jobs as exported
+F.Intrinsic.Control.For(V.Local.i,V.DataView.JobData!VJobData.RowCount--,0,-1)
+	F.Data.DataView.SetValue("JobData","VJobData",-1,"exported","Y")
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Data.DataTable.Close("Sigmanest")
+
+F.Data.DataView.Close("JobData","VJobData")
+
+F.Data.DataTable.Close("JobData")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Export_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Export.End
+
+Program.Sub.PreFolderCheck.Start
+F.Intrinsic.Control.SetErrorHandler("PreFolderCheck_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+v.Local.sFilePath.Declare(String,"")
+v.Local.sCustom.Declare(String,"")
+v.Local.bExists.Declare(Boolean,False)
+v.Local.sBCFile.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.bRet.Declare(String,"")
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+F.Intrinsic.String.Build("Select Unattended From GCG_6319_Sigma_Dir Where Company = '{0}'",V.Caller.CompanyCode,V.Local.sSql)
+F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Local.bRet)
+
+'checking if this is to run unnattended.
+F.Intrinsic.Control.If(V.Local.bRet,=,False)
+	F.Intrinsic.Control.CallSub(Exit)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Build("Select Input_Dir From GCG_6319_Sigma_Dir Where Company = '{0}'",V.Caller.CompanyCode,V.Local.sSql)
+F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Global.sInputPath)
+F.ODBC.Connection!con.Close
+
+F.Intrinsic.Control.If(V.Global.sInputPath.Trim,=,"")
+	V.Local.sError.Set("Go to Menu Item: Shop Floor Control > File > SigmaNest Integration Directories (6319) to set up a Input Directory.")
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("PreFolderCheck_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.PreFolderCheck.End
+
+Program.Sub.UpdateXP.Start
+F.Intrinsic.Control.SetErrorHandler("UpdateXP_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.sSeq.Declare(String,"")
+
+F.Data.DataView.ToDataTable("JobData","VJobData","WOSOINV",True)
+
+f.Data.DataTable.SetValue("WOSOINV",-1,"EXPORTED","Y")
+
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.WOSOINV.RowCount--,1)
+	F.Intrinsic.String.Right(V.DataTable.WOSOINV(V.Local.i).JSS!FieldValTrim,6,V.Local.sSeq)
+	f.Data.DataTable.SetValue("WOSOINV",-1,"Seq",V.Local.sSeq)
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+f.Data.DataTable.SaveToDB("WOSOINV","Con", "GCG_6319_Jss_Export", "Jss*!*ITEMNAME_SEQ", 256, "Jss@!@Jss*!*ITEMNAME_Seq@!@MSeq*!*Job@!@Job*!*Suffix@!@Suffix*!*Seq@!@Seq*!*exported@!@exported")
+F.ODBC.Connection!con.Close
+
+F.Data.DataTable.Close("WOSOINV")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("UpdateXP_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.UpdateXP.End
+
+Program.Sub.IsRunning.Start
+F.Intrinsic.Control.SetErrorHandler("IsRunning_Err")
+F.Intrinsic.Control.ClearErrors
+
+v.Local.sFile.Declare(string)
+v.Local.i.Declare(Long)
+v.Local.bCheck.Declare(Boolean)
+v.Local.sText.Declare(String)
+
+'we run the program async so it will not hold up online update - we check the PID and if it is still running, we end the current program.
+f.Intrinsic.String.Build("{0}\6319_Exp_{1}.pid",v.Caller.FilesDir,V.Caller.CompanyCode,v.Local.sFile)
+f.Intrinsic.File.Exists(v.Local.sFile,v.Local.bCheck)
+f.Intrinsic.Control.If(v.Local.bCheck,=,True)
+	f.Intrinsic.File.File2String(v.local.sFile,v.Local.sText)
+	f.Intrinsic.Task.PIDRunning(v.Local.sText.Long,v.Local.bCheck)
+	f.Intrinsic.Control.If(v.Local.bCheck,=,True)
+		'end program
+		F.Intrinsic.Control.End
+
+	f.Intrinsic.Control.Else
+		'create file with current PID and continue running
+		f.Intrinsic.File.String2File(v.Local.sFile,v.Ambient.PID)	
+	f.Intrinsic.Control.EndIf
+f.Intrinsic.Control.Else
+	'create file with current PID and continue running
+	f.Intrinsic.File.String2File(v.Local.sFile,v.Ambient.PID)
+f.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("IsRunning_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.IsRunning.End
