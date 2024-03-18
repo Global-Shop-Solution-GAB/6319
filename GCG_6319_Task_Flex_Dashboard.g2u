@@ -1,0 +1,650 @@
+Program.Sub.ScreenSU.Start
+Gui.FormFlexTask..Create
+Gui.FormFlexTask..Caption("FlexSchedules Tied to SigmaNest Task Name")
+Gui.FormFlexTask..Size(7575,10785)
+Gui.FormFlexTask..MinX(0)
+Gui.FormFlexTask..MinY(0)
+Gui.FormFlexTask..Position(0,0)
+Gui.FormFlexTask..BackColor(-2147483633)
+Gui.FormFlexTask..MousePointer(0)
+Gui.FormFlexTask..Event(UnLoad,FormFlexTask_UnLoad)
+Gui.FormFlexTask.GsGridFlex.Create(GsGridControl)
+Gui.FormFlexTask.GsGridFlex.Size(7185,9630)
+Gui.FormFlexTask.GsGridFlex.Position(105,105)
+Gui.FormFlexTask.GsGridFlex.Anchor(15)
+Gui.FormFlexTask.GsGridFlex.Event(RowCellClick,GsGridFlex_RowCellClick)
+Gui.FormFlexTask.GsGridFlex.Event(MouseCellEnter,GsGridFlex_MouseCellEnter)
+Gui.FormFlexTask.cmdRefresh.Create(Button)
+Gui.FormFlexTask.cmdRefresh.Size(855,375)
+Gui.FormFlexTask.cmdRefresh.Position(6435,9855)
+Gui.FormFlexTask.cmdRefresh.Anchor(10)
+Gui.FormFlexTask.cmdRefresh.Caption("REFRESH")
+Gui.FormFlexTask.cmdRefresh.Event(Click,cmdRefresh_Click)
+Gui.FormFlexTask.cmdIssue.Create(Button)
+Gui.FormFlexTask.cmdIssue.Size(2610,375)
+Gui.FormFlexTask.cmdIssue.Position(105,9855)
+Gui.FormFlexTask.cmdIssue.Anchor(6)
+Gui.FormFlexTask.cmdIssue.Caption("Issue Material for Selected Task")
+Gui.FormFlexTask.cmdIssue.Event(Click,cmdIssue_Click)
+Gui.FormFlexTask.cmdIssue.Visible(False)
+Gui.FormFlexTask.lblTimer.Create(Label,"60",True,510,255,0,5895,9960,True,0,"Arial",12,-2147483633,0)
+Gui.FormFlexTask.lblTimer.Anchor(10)
+Gui.FormFlexTask.lblTimer.FontStyle(True,False,False,False,False)
+Gui.FormFlexTask.timer1.Create(Timer)
+Gui.FormFlexTask.timer1.Size(495,495)
+Gui.FormFlexTask.timer1.Position(3180,9825)
+Gui.FormFlexTask.timer1.Interval(1000)
+Gui.FormFlexTask.timer1.Event(Timer,timer1_Timer)
+Gui.FormFlexTask.cmdCreateFlex.Create(Button)
+Gui.FormFlexTask.cmdCreateFlex.Size(3015,375)
+Gui.FormFlexTask.cmdCreateFlex.Position(2790,9855)
+Gui.FormFlexTask.cmdCreateFlex.Caption("Create Flex Schedule for Open Tasks")
+Gui.FormFlexTask.cmdCreateFlex.Event(Click,cmdCreateFlex_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.iIndex.Declare(Long,0)
+V.Global.iPiD.Declare(Long,0)
+V.Global.iTimer.Declare(Long,60)
+V.Global.sGUI.Declare(String,"N")
+Program.External.Include.Library("900300.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.If(V.Caller.Hook,=,"15710")
+	V.Passed.000021.Set("Task/Flex")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.ElseIf(V.Caller.Hook,=,"15780")
+	V.Global.sGUI.Set("Y")
+	Gui.FormFlexTask.cmdCreateFlex.Visible(True)
+	Gui.FormFlexTask.cmdIssue.Visible(False)
+F.Intrinsic.Control.Else
+	V.Global.sGUI.Set("N")
+	Gui.FormFlexTask.cmdCreateFlex.Visible(False)
+	Gui.FormFlexTask.cmdIssue.Visible(False)
+F.Intrinsic.Control.EndIf
+
+Gui.FormFlexTask..ContextMenuCreate("Copy")
+Gui.FormFlexTask..ContextMenuAddItem("Copy","Copy Sched",0,"Copy Schedule #")
+Gui.FormFlexTask..ContextMenuAddItem("Copy","Print Sched",0,"Print Schedule")
+Gui.FormFlexTask..ContextMenuSetItemEventHandler("Copy","Copy Sched",MenuClick)
+Gui.FormFlexTask..ContextMenuSetItemEventHandler("Copy","Print Sched",MenuClick)
+
+F.Intrinsic.Control.CallSub(Get_Data)
+F.Intrinsic.Control.CallSub(Set_Properties)
+
+Gui.FormFlexTask..Show
+
+gui.FormFlexTask.timer1.Enabled(True)
+
+Gui.FormFlexTask..AlwaysOnTop(True)
+Gui.FormFlexTask..AlwaysOnTop(False)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.FormFlexTask_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("FormFlexTask_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("FormFlexTask_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.FormFlexTask_UnLoad.End
+
+Program.Sub.Get_Data.Start
+F.Intrinsic.Control.SetErrorHandler("Get_Data_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.sFilter.Declare(String,"")
+V.Local.iC.Declare(Long,0)
+V.Local.fQty.Declare(Float,0)
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.Intrinsic.Control.If(V.DataTable.IssueMaterial.Exists,=,False)
+	'Create our Issue Material DT
+	f.Data.DataTable.Create("IssueMaterial",True)
+	f.Data.DataTable.AddColumn("IssueMaterial","Part","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Rev","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Loc","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Qty","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Lot","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Bin","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Heat","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Serial","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Job","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Suffix","String")
+	f.Data.DataTable.AddColumn("IssueMaterial","Seq","String")
+F.Intrinsic.Control.EndIf
+
+'getting signma nest connection info
+F.Intrinsic.String.Build("Select Sig_Provider, Sig_Server, Sig_Data, UID, PWD From GCG_6319_Sigma_Dir Where Company = '{0}'",V.Caller.CompanyCode,V.Local.sSql)
+F.Intrinsic.Control.If(V.DataTable.SigDir.Exists,=,False)
+	F.Data.DataTable.CreateFromSQL("SigDir","Con",V.Local.sSql,True)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.Flex.Exists)
+	F.Data.DataTable.Close("Flex")
+F.Intrinsic.Control.EndIf
+
+'Cleaning up Job_CT_Flx_Schd table
+'gss is not removing the Job Labor seq from flex schedule when closing from GUI.
+
+F.Data.DataTable.CreateFromSQL("OldFlex","con","select Schedule, Schedule_Suffix, Job, Suffix, Labor_Seq from JOB_CT_FLX_SCHD Where rtrim(Job)+rtrim(Suffix)+rtrim(Labor_Seq) Not In (Select rtrim(Job)+rtrim(Suffix)+rtrim(Seq) From V_Job_Operations Where LMO = 'L' and Seq < '980000' and Flag_Closed <> 'Y')")
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.OldFlex.RowCount--,1)
+	F.Intrinsic.String.Build("Delete From JOB_CT_FLX_SCHD Where Schedule = '{0}' and Schedule_Suffix = '{1}' and Job = '{2}' and Suffix = '{3}' and Labor_Seq = '{4}'",V.DataTable.OldFlex(V.Local.i).Schedule!FieldValTrim,V.DataTable.OldFlex(V.Local.i).Schedule_Suffix!FieldValTrim,V.DataTable.OldFlex(V.Local.i).Job!FieldValTrim,V.DataTable.OldFlex(V.Local.i).Suffix!FieldValTrim,V.DataTable.OldFlex(V.Local.i).Labor_Seq!FieldValTrim,V.Local.sSql)
+	F.ODBC.Connection!con.Execute(V.Local.sSql)
+F.Intrinsic.Control.Next(V.Local.i)
+F.Data.DataTable.Close("OldFlex")
+
+F.Data.DataTable.CreateFromSQL("Flex","con","Select Distinct Cast('' as Char) as TaskName, Schedule+Schedule_Suffix as SS, Schedule, Schedule_Suffix, Cast('1900-01-01' as Date) as Date_Due From V_Job_Ct_Flx_Schd Order By Schedule",True)
+
+F.Data.Dictionary.CreateFromSQL("TaskName","con","Select Schedule, TaskName From GCG_6319_Task_Flex")
+F.Data.Dictionary.SetDefaultReturn("TaskName","")
+
+F.Data.DataTable.FillFromDictionary("Flex","TaskName","Schedule","TaskName")
+
+F.Data.Dictionary.Close("TaskName")
+
+F.Data.DataTable.CreateFromSQL("FlexJobs","con","Select Schedule, Schedule_Suffix, Date_Due From V_Job_Ct_Flx_Schd a Left Join V_Job_Operations b on a.Matl_Job = b.Job and a.Matl_Suffix = b.Suffix and a.Matl_Seq = b.Seq")
+
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.Flex.RowCount--,1)
+	F.Intrinsic.String.Build("Schedule = '{0}' and Schedule_Suffix = '{1}'",V.DataTable.Flex(V.Local.i).Schedule!FieldValTrim,V.DataTable.Flex(V.Local.i).Schedule_Suffix!FieldValTrim,V.Local.sFilter)
+	F.Data.DataView.Create("FlexJobs","VFlexJobs",22,V.Local.sFilter,"Date_Due")
+	F.Data.DataTable.SetValue("Flex",V.Local.i,"Date_Due",V.DataView.FlexJobs!VFlexJobs(V.DataView.FlexJobs!VFlexJobs.RowCount--).Date_Due!FieldVal)
+	F.Data.DataView.Close("FlexJobs","VFlexJobs")
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Intrinsic.Control.If(V.Global.sGUI,=,"Y")
+	F.Data.DataTable.AddColumn("Flex","Select_Flex",Boolean)
+	F.Data.DataTable.SetValue("Flex",-1,"Select_Flex",False)
+F.Intrinsic.Control.EndIf
+
+F.Data.DataTable.Close("FlexJobs")
+
+F.ODBC.Connection!Con.Close
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Get_Data_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Get_Data.End
+
+Program.Sub.Set_Properties.Start
+F.Intrinsic.Control.SetErrorHandler("Set_Properties_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+'F.Data.DataView.Create("Flex","VFlex",22,"TaskName <> ''","")
+F.Data.DataView.Create("Flex","VFlex",22,"","")
+Gui.FormFlexTask.GsGridFlex.AddGridviewFromDataview("GFlex","Flex","VFlex")
+
+'Gui.FormFlexTask.GsGridFlex.AddGridviewFromDatatable("GFlex","Flex")
+
+Gui.FormFlexTask.GsGridFlex.SetGridviewProperty("GFlex","AllowColumnMoving",False)
+GUI.FormFlexTask.GsGridFlex.SetGridviewProperty("GFlex","AllowColumnResizing",False)
+Gui.FormFlexTask.GsGridFlex.SetGridviewProperty("GFlex","OptionsViewColumnAutoWidth",True)
+Gui.FormFlexTask.GsGridFlex.SetGridviewProperty("GFlex","OptionsViewRowAutoHeight",True)
+
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName",Visible,True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName","ReadOnly",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName","AllowEdit",False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName","HeaderForeColor",v.Color.PRI-GSS-00)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName","HeaderFontBold",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","TaskName","Caption","Task Name")
+
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","SS",Visible,False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","SS","ReadOnly",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","SS","AllowEdit",False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","SS","HeaderForeColor",v.Color.PRI-GSS-00)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","SS","HeaderFontBold",True)
+
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule",Visible,True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule","ReadOnly",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule","AllowEdit",False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule","HeaderForeColor",v.Color.PRI-GSS-00)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule","HeaderFontBold",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule","Caption","Schedule")
+
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix",Visible,True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix","ReadOnly",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix","AllowEdit",False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix","HeaderForeColor",v.Color.PRI-GSS-00)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix","HeaderFontBold",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Schedule_Suffix","Caption","Suffix")
+
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due",Visible,True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","ReadOnly",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","AllowEdit",False)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","HeaderForeColor",v.Color.PRI-GSS-00)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","HeaderFontBold",True)
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","Caption","Due Date")
+Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Date_Due","DisplayCustomDatetime","d")
+
+F.Intrinsic.Control.If(V.Global.sGUI,=,"Y")
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex",Visible,False)
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","ReadOnly",True)
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","AllowEdit",False)
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","HeaderForeColor",v.Color.PRI-GSS-00)
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","HeaderFontBold",True)
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","Caption","Select")
+	Gui.FormFlexTask.GsGridFlex.SetColumnProperty("GFlex","Select_Flex","Fixed","Left")
+F.Intrinsic.Control.EndIf
+
+Gui.FormFlexTask.GsGridFlex.MainView("GFlex")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Set_Properties_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Set_Properties.End
+
+Program.Sub.GsGridFlex_RowCellClick.Start
+F.Intrinsic.Control.SetErrorHandler("GsGridFlex_RowCellClick_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.iX.Declare(Long,0)
+V.Local.iY.Declare(Long,0)
+V.Local.sSched.Declare(String,"")
+
+Gui.FormFlexTask.timer1.Enabled(False)
+
+F.Intrinsic.Control.If(V.Args.Button.UCase,=,"RIGHT")
+	'getting mouse position
+	F.Intrinsic.API.GetMousePosition(V.Local.iX,V.Local.iY)
+	
+	'showing context menu
+	Gui.FormFlexTask..ContextMenuShow("Copy",V.Local.iX,V.Local.iY)
+F.Intrinsic.Control.Else
+	
+	F.Intrinsic.Control.If(V.Global.sGUI,=,"Y")
+		F.Intrinsic.Control.If(V.Args.Clicks,=,2,"AND",V.Args.Column.UCase,=,"SCHEDULE")
+			V.Local.sSched.Set(V.DataTable.Flex(V.Args.RowIndex).SS!FieldValTrim)
+	
+			F.Intrinsic.String.Build("$%{0}",V.Local.sSched,V.Local.sSched)
+			F.Intrinsic.API.SendMessageS(V.Passed.000007.HWnd,12,0,V.Local.sSched)
+		
+			F.Intrinsic.API.SetControlFocus(V.Passed.000007.HWnd)
+		F.Intrinsic.Control.Else
+			F.Intrinsic.Control.If(V.Args.Column.UCase,=,"SELECT_FLEX")
+				F.Data.DataTable.SetValue("Flex",-1,"Select_Flex",False)
+				F.Data.DataTable.SetValue("Flex",V.Args.RowIndex,"Select_Flex",V.DataTable.Flex(V.Args.RowIndex).Select_Flex!FieldValNot)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.endif
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+Gui.FormFlexTask.timer1.Enabled(True)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("GsGridFlex_RowCellClick_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.GsGridFlex_RowCellClick.End
+
+Program.Sub.GsGridFlex_MouseCellEnter.Start
+F.Intrinsic.Control.SetErrorHandler("GsGridFlex_MouseCellEnter_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sTemp.Declare(String,"")
+V.Local.iMenu.Declare(Long,0)
+V.Local.iRowClick.Declare(Long,0)
+	
+F.Intrinsic.Control.IsInCallstack(MenuClick,V.Local.iMenu)
+F.Intrinsic.Control.IsInCallstack(GsGridFlex_RowCellClick,V.Local.iRowClick)
+	
+F.Intrinsic.Control.If(V.Local.iMenu,=,0,"AND",V.Local.iRowClick,=,0)	
+	Gui.FormFlexTask.GsGridFlex.GetCellValueByColumnName("GFlex","Schedule",V.Args.SourceRowIndex,V.Local.sTemp)
+	F.Intrinsic.String.Build("Schedule = '{0}'",V.Local.sTemp,V.Local.sTemp)
+	F.Data.DataTable.Select("Flex",V.Local.sTemp,V.Local.sTemp.Long)
+	V.Global.iIndex.Set(V.Local.sTemp.Long)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("GsGridFlex_MouseCellEnter_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.GsGridFlex_MouseCellEnter.End
+
+Program.Sub.MenuClick.Start
+F.Intrinsic.Control.SetErrorHandler("MenuClick_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSched.Declare(String,"")
+
+F.Intrinsic.Control.SelectCase(V.Args.ItemName.UCase)
+	F.Intrinsic.Control.Case("COPY SCHED")
+		V.Local.sSched.Set(V.DataTable.Flex(V.Global.iIndex).SS!FieldValTrim)
+		
+		F.Intrinsic.String.Build("$%{0}",V.Local.sSched,V.Local.sSched)
+		F.Intrinsic.UI.SetClipboardText(V.Local.sSched)
+	
+	F.Intrinsic.Control.Case("PRINT SCHED")
+		F.Data.DataTable.AddRow("900300", "StartDate", "000000", "EndDate", "000000", "StartFSNum", V.DataTable.Flex(V.Global.iIndex).Schedule!FieldValTrim, "StartFSSuffix", V.DataTable.Flex(V.Global.iIndex).Schedule_Suffix!FieldValTrim, "EndFSNum", V.DataTable.Flex(V.Global.iIndex).Schedule!FieldValTrim, "EndFSSuffix", V.DataTable.Flex(V.Global.iIndex).Schedule_Suffix!FieldValTrim, "ShowMatl", "Y", "UseExtBarcode", "Y")
+		F.Intrinsic.Control.CallSub(900300Sync)
+		
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("MenuClick_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.MenuClick.End
+
+Program.Sub.cmdRefresh_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdRefresh_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.UI.InvokeWaitDialog("Refreshing Schedule Data........")
+
+Gui.FormFlexTask..Enabled(False)
+
+F.Intrinsic.Control.CallSub(Get_Data)
+F.Intrinsic.Control.CallSub(Set_Properties)
+
+Gui.FormFlexTask..Enabled(True)
+
+F.Intrinsic.UI.CloseWaitDialog
+
+Gui.FormFlexTask.lblTimer.ForeColor(v.Color.Black)
+V.Global.iTimer.Set(60)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdRefresh_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdRefresh_Click.End
+
+Program.Sub.cmdIssue_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdIssue_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.iC.Declare(Long,0)
+V.Local.sCon.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.sFilter.Declare(String,"")
+V.Local.sJob.Declare(String,"")
+V.Local.sSuffix.Declare(String,"")
+V.Local.sLSeq.Declare(STring,"")
+V.Local.sMSeq.Declare(STring,"")
+v.Local.bCheck.Declare(Boolean,False)
+v.Local.sQtyIssue.Declare(String,"")
+V.Local.bRet.Declare(Boolean,False)
+V.Local.sRet.Declare(String,"")
+v.Local.sMOPEN.Declare(String,"")
+v.Local.iCountm.Declare(Long,0)
+v.Local.sBackupMOPEN.Declare(String,"")
+V.Local.iQ.Declare(Long,0)
+V.Local.fSF.Declare(Float,0)
+V.Local.fTemp.Declare(Float,0)
+
+'F.Intrinsic.Control.If(V.Global.iPiD,=,0)
+'	F.Global.General.LaunchMenuTask(609,0,V.Global.iPiD)
+'F.Intrinsic.Control.Else
+'	F.Intrinsic.Task.IsProgramRunning(V.Global.iPiD,V.Local.bRet)
+'	F.Intrinsic.Control.If(V.Local.bRet,=,False)
+'		F.Global.General.LaunchMenuTask(609,0,V.Global.iPiD)
+'	F.Intrinsic.Control.EndIf
+'F.Intrinsic.Control.EndIf
+Gui.FormFlexTask.timer1.Enabled(False)
+
+F.Intrinsic.Control.If(v.DataTable.SigDir.RowCount--,<>,-1)
+	F.Intrinsic.Control.If(V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Provider!FieldValTrim,<>,"","OR",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Server!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Data!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).UID!FieldValTrim,<>,"",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).PWD!FieldValTrim,<>,"")
+		F.Intrinsic.String.Build("Provider={0};Server={1};Database={2};Uid={3};Pwd={4};",V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Provider!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Server!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).Sig_Data!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).UID!FieldValTrim,V.DataTable.SigDir(V.DataTable.SigDir.RowCount--).PWD!FieldValTrim,V.Local.sCon)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.UI.Msgbox("Go to Menu Item: Shop Floor Control > File > SigmaNest Integration Directories (6319) to set up a SigmanNest Connection Data.","Attention")
+		F.Intrinsic.Control.ExitSub
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Data.DataView.Create("Flex","Temp",22,"Select_Flex = True and TaskName <> ''","")
+
+F.Intrinsic.Control.If(V.DataView.Flex!Temp.RowCount--,<>,-1)
+	
+	F.Intrinsic.Control.For(V.Local.i,0,V.DataView.Flex!Temp.RowCount--,1)
+		f.ODBC.Connection!conS.openconnection(V.Local.sCon)
+'		F.Intrinsic.String.Build("select * from PIP a join Program b on a.programname = b.programname Where b.TaskName = '{0}'",V.DataView.Flex!Temp(V.Local.i).TaskName!FieldValTrim,V.Local.sSql)
+		F.Intrinsic.String.Build("select Distinct b.TaskName,a.WONUMBER, a.programname, a.RepeatID , a.QTYINPROCESS, a.nestedarea, b.material from PIP a inner join Program b on a.programname = b.programname and a.RepeatID  = b.RepeatID Where b.TaskName = '{0}'",V.DataView.Flex!Temp(V.Local.i).TaskName!FieldValTrim,V.Local.sSql)
+		f.Data.Datatable.CreateFromSQL("Nests","conS",V.Local.sSql,True)
+		F.ODBC.Connection!conS.Close
+
+		F.ODBC.Connection!Con.OpenCompanyConnection
+		F.Data.DataTable.AddColumn("Nests","Bin",String)
+
+		f.Data.Dictionary.CreateFromSQL("DefaultBin","Con","SELECT RTRIM(PART) AS PART, RTRIM(BIN) AS BIN FROM V_INVENTORY_MSTR Order by Part")
+		f.Data.Dictionary.SetDefaultReturn("DefaultBin","")
+		f.Data.DataTable.FillFromDictionary("Nests","DefaultBin","MATERIAL","Bin")
+		f.Data.Dictionary.Close("DefaultBin")
+		f.Data.DataTable.AddExpressionColumn("Nests","PartShort","String","SUBSTRING([MATERIAL] + '                    ',1,17)")
+		f.Data.DataTable.AddExpressionColumn("Nests","RevShort","String","SUBSTRING([MATERIAL] + '                    ',18,3)")
+		F.Intrinsic.Control.If(V.DataTable.Nests.RowCount--,<>,-1)
+			F.Data.DataView.Create("Nests","Temp",22,"","")
+			F.Data.DataView.ToDataTableDistinct("Nests","Temp","WONUM","WONUMBER")
+			F.Data.DataView.Close("Nests","Temp")
+			F.Intrinsic.Control.For(V.Local.iC,0,V.DataTable.WONUM.RowCount--,1)
+				F.Intrinsic.String.Build("WONUMBER = '{0}'",V.DataTable.WONUM(V.Local.iC).WONUMBER!FieldValTrim,V.Local.sFilter)
+				F.Data.DataView.Create("Nests","Temp",22,V.Local.sFilter,"")
+				F.Data.DataView.ToDataTable("Nests","Temp","Temp",True)
+				F.Data.DataView.Close("Nests","Temp")
+				F.Intrinsic.String.Split(V.DataTable.WONUM(V.Local.iC).WONUMBER!FieldValTrim,"-",V.Local.sJob)
+				V.Local.sSuffix.Set(V.Local.sJob(1))
+				V.Local.sLSeq.Set(V.Local.sJob(2))
+				F.Intrinsic.String.Build("Select Top 1 Seq From V_Job_Operations Where Job = '{0}' and Suffix = '{1}' and Operation = '{2}' and LMO = 'M' Order by Seq",V.Local.sJob,V.Local.sSuffix,V.Local.sLSeq,V.Local.sSql)
+				F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sMSeq)
+
+				f.Data.DataTable.AddExpressionColumn("Temp","AREA","Float","CONVERT([NESTEDAREA], 'System.Double')")
+				f.Data.DataTable.AddExpressionColumn("Temp","QTY","Float","CONVERT([QTYINPROCESS],'System.Double')")
+				V.Local.fSF.Set(0)
+				V.Local.fTemp.Set(0)
+				F.Intrinsic.Control.For(V.Local.iQ,0,V.DataTable.Temp.RowCount--,1)
+					F.Intrinsic.Math.Mult(V.DataTable.Temp(V.Local.iQ).AREA!FieldValFloat,V.DataTable.Temp(V.Local.iQ).QTY!FieldValFloat,V.Local.fTemp)
+					F.Intrinsic.Math.Add(V.Local.fSF,V.Local.fTemp,V.Local.fSF)
+				F.Intrinsic.Control.Next(V.Local.iQ)
+				F.Intrinsic.Math.Div(V.Local.fSF,144,V.Local.fSF)
+'				f.Data.DataTable.AddExpressionColumn("Temp","SF","Float","SUM([AREA]*[QTY])/144")
+'				f.Data.DataTable.AddExpressionColumn("File","SF","Float","((CONVERT([NESTEDAREA], 'System.Double')/144)*CONVERT([QTYINPROCESS],'System.Double'))")
+'				f.Intrinsic.String.ConvertToString(v.DataTable.Temp(v.DataTable.Temp.RowCount--).SF!FieldValFloat,v.Local.sQtyIssue)
+				f.Intrinsic.String.ConvertToString(V.Local.fSF,v.Local.sQtyIssue)
+				f.Intrinsic.String.IsInString(v.Local.sQtyIssue,".",true,v.Local.bCheck)
+				f.Intrinsic.Control.If(v.Local.bCheck,<>,True)
+					f.Intrinsic.String.Build("{0}.0",v.Local.sQtyIssue.Trim,v.Local.sQtyIssue)
+				F.Intrinsic.Control.Else
+					F.Intrinsic.String.Format(V.Local.sQtyIssue,"0.0000",V.Local.sQtyIssue)
+				f.Intrinsic.Control.EndIf
+				F.Intrinsic.String.Build("Select Flag_Closed From Job_Operations Where Job = '{0}' and Suffix = '{1}' and Seq = '{2}'",V.Local.sJob,V.Local.sSuffix,V.Local.sMSeq,V.Local.sSql)
+				F.ODBC.Connection!con.ExecuteAndReturn(V.Local.sSql,V.Local.sSql)
+				F.Intrinsic.Control.If(V.Local.sSql.Trim,<>,"Y")
+					f.Data.DataTable.AddRow("IssueMaterial","Part",v.DataTable.Temp(v.DataTable.Temp.RowCount--).PartShort!FieldValTrim,"Rev",v.DataTable.Temp(v.DataTable.Temp.RowCount--).RevShort!FieldValTrim,"Qty",v.Local.sQtyIssue.trim,"Bin",v.DataTable.Temp(v.DataTable.Temp.RowCount--).Bin!FieldValTrim,"Job",V.Local.sJob,"Suffix",V.Local.sSuffix,"Seq",V.Local.sMSeq)
+				F.Intrinsic.Control.EndIf
+				F.Data.DataTable.Close("Temp")
+				F.Intrinsic.String.Build("Update Job_Operations Set Flag_Closed = 'Y' Where Job = '{0}' and Suffix = '{1}' and Operation = '{2}' and LMO = 'M' and Seq <> '{3}'",V.Local.sJob,V.Local.sSuffix,V.Local.sLSeq,V.Local.sMSeq,V.Local.sSql)
+				F.ODBC.Connection!con.Execute(V.Local.sSql)
+			F.Intrinsic.Control.Next(V.Local.iC)
+		F.Intrinsic.Control.EndIf
+		F.Data.DataTable.Close("Nests")
+		F.ODBC.Connection!con.Close
+	F.Intrinsic.Control.Next(V.Local.i)
+
+	F.Intrinsic.Control.If(V.DataTable.IssueMaterial.RowCount--,<>,-1)
+		'Create a DataView just because we have to
+		f.Data.DataView.Create("IssueMaterial","IssueView",22,"","")
+		'IssueMaterial DT now has all of our Data to issue.
+		f.Intrinsic.String.Build("{0}\L{1}{2}MOPEN.txt",v.Caller.FilesDir,v.Caller.CompanyCode,v.Caller.Terminal,v.Local.sMOPEN)
+	'	f.Data.DataTable.SaveToCSV("IssueMaterial",v.Local.sMOPEN,False)
+		f.Data.DataView.ToString("IssueMaterial","IssueView",",",v.Ambient.NewLine,v.Local.sRet)
+		F.Data.DataView.Close("IssueMaterial","IssueView")
+		f.Intrinsic.File.String2File(v.Local.sMOPEN,v.Local.sRet)
+		'Create Backup MOPEN file
+		f.Intrinsic.String.Build("{0}\L{1}{2}MOPEN.txt.{3}{4}",v.Caller.FilesDir,v.Caller.CompanyCode,v.Caller.Terminal,v.Ambient.Date.FormatMMDDYYYY,v.Ambient.Now.FormatHHNNSS,v.Local.sBackupMOPEN)
+	'	f.Data.DataTable.SaveToCSV("IssueMaterial",v.Local.sBackupMOPEN,False)
+		f.Intrinsic.File.String2File(v.Local.sBackupMOPEN,v.Local.sRet)
+		
+		'Now we can Issue the lines.
+		f.Intrinsic.String.Build("L{0}{1}MOPEN.txt",v.Caller.CompanyCode,v.Caller.Terminal,v.Local.sMOPEN)
+		
+		f.Global.General.CallWrapperSync(450100,v.Local.sMOPEN)
+		
+		'now that issued the material we need to go back and close all of the lines.
+		F.ODBC.Connection!Con.OpenCompanyConnection
+		f.Intrinsic.Control.For(v.Local.iCountm,0,v.DataTable.IssueMaterial.RowCount--,1)
+			'we need to close each job suffix seq in this table.
+			f.Intrinsic.String.Build("UPDATE JOB_OPERATIONS SET FLAG_CLOSED = 'Y' WHERE JOB = '{0}' AND SUFFIX = '{1}' AND SEQ = '{2}' ",V.DataTable.IssueMaterial(V.Local.iCountm).Job!FieldValTrim,V.DataTable.IssueMaterial(V.Local.iCountm).Suffix!FieldValTrim,V.DataTable.IssueMaterial(V.Local.iCountm).Seq!FieldValTrim,v.Local.sSQL)
+			f.ODBC.Connection!Con.Execute(v.Local.sSQL)
+		f.Intrinsic.Control.Next(v.Local.iCountm)
+		F.ODBC.Connection!con.Close
+	F.Intrinsic.Control.EndIf
+	
+	F.Data.DataTable.DeleteRow("IssueMaterial")
+	F.Data.DataTable.AcceptChanges("IssueMaterial")
+
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.If(V.Global.iPiD,=,0)
+		F.Global.General.LaunchMenuTask(609,0,V.Global.iPiD)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.Task.IsProgramRunning(V.Global.iPiD,V.Local.bRet)
+		F.Intrinsic.Control.If(V.Local.bRet,=,False)
+			F.Global.General.LaunchMenuTask(609,0,V.Global.iPiD)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+F.Data.DataView.Close("Flex","Temp")
+
+F.Data.DataTable.SetValue("Flex",-1,"Select_Flex",False)
+Gui.FormFlexTask.timer1.Enabled(True)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdIssue_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdIssue_Click.End
+
+Program.Sub.timer1_Timer.Start
+F.Intrinsic.Control.SetErrorHandler("timer1_Timer_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+gui.FormFlexTask.timer1.Enabled(False)
+
+F.Intrinsic.Math.Sub(v.Global.iTimer,1,v.Global.iTimer)
+F.Intrinsic.Control.If(v.Global.iTimer,<=,0)
+	F.Intrinsic.Control.BlockEvents
+	Gui.FormFlexTask..Enabled(False)
+	F.Intrinsic.Control.CallSub(cmdRefresh_Click)
+	Gui.FormFlexTask..Enabled(True)
+	F.Intrinsic.Control.UnBlockEvents
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.If(V.Global.iTimer,<=,5)
+		Gui.FormFlexTask.lblTimer.ForeColor(v.Color.Red)
+	F.Intrinsic.Control.Else
+		Gui.FormFlexTask.lblTimer.ForeColor(v.Color.Black)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+
+Gui.FormFlexTask.lblTimer.Caption(V.Global.iTimer)
+gui.FormFlexTask.timer1.Enabled(True)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("timer1_Timer_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.timer1_Timer.End
+
+Program.Sub.cmdCreateFlex_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdRefresh_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sGAB.Declare(STring,"")
+
+gui.FormFlexTask.timer1.Enabled(False)
+Gui.FormFlexTask.cmdCreateFlex.Enabled(False)
+F.Intrinsic.UI.InvokeWaitDialog("Generating Flex Schedules..............")
+F.Intrinsic.Control.If(V.Caller.GasDir.Right1,=,"\")
+	F.Intrinsic.String.Build("{0}GCG_6319_SIGMANEST_FLEX.g2u",V.Caller.GasDir,V.Local.sGAB)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("{0}\GCG_6319_SIGMANEST_FLEX.g2u",V.Caller.GasDir,V.Local.sGAB)
+F.Intrinsic.Control.EndIf
+
+F.Global.Task.CallSyncGAS(V.Local.sGab,"",2)
+
+F.Intrinsic.Control.CallSub(cmdRefresh_Click)
+F.Intrinsic.UI.CloseWaitDialog
+Gui.FormFlexTask.cmdCreateFlex.Enabled(True)
+gui.FormFlexTask.timer1.Enabled(True)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdRefresh_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Task_Flex_Dashboard.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormFlexTask_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdCreateFlex_Click.End
