@@ -1,0 +1,253 @@
+Program.Sub.ScreenSU.Start
+Gui.FormArchive..Create
+Gui.FormArchive..Caption("Archive Order No. in SigmaNest")
+Gui.FormArchive..Size(5250,1995)
+Gui.FormArchive..MinX(0)
+Gui.FormArchive..MinY(0)
+Gui.FormArchive..Position(0,0)
+Gui.FormArchive..BackColor(-2147483633)
+Gui.FormArchive..MousePointer(0)
+Gui.FormArchive..Event(UnLoad,FormArchive_UnLoad)
+Gui.FormArchive.lblWO.Create(Label,"Select Work Order",True,1935,255,0,180,180,True,0,"Arial",8,-2147483633,0)
+Gui.FormArchive.txtJob.Create(TextBox,"",True,1500,300,0,210,435,True,0,"Arial",8,-2147483643,1)
+Gui.FormArchive.txtJob.Locked(True)
+Gui.FormArchive.txtSuffix.Create(TextBox,"",True,900,300,0,1845,435,True,0,"Arial",8,-2147483643,1)
+Gui.FormArchive.txtSuffix.Locked(True)
+Gui.FormArchive.cmdWO.Create(Button)
+Gui.FormArchive.cmdWO.Size(435,375)
+Gui.FormArchive.cmdWO.Position(2880,390)
+Gui.FormArchive.cmdWO.Caption("^")
+Gui.FormArchive.cmdWO.Event(Click,cmdWO_Click)
+Gui.FormArchive.cmdArch.Create(Button)
+Gui.FormArchive.cmdArch.Size(3915,375)
+Gui.FormArchive.cmdArch.Position(210,930)
+Gui.FormArchive.cmdArch.Caption("Archive Orders Generated from Work Order")
+Gui.FormArchive.cmdArch.Event(Click,cmdArch_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.sInputPath.Declare(String,"")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.CallSub(PreFolderCheck)
+
+Gui.FormArchive..Show
+
+Gui.FormArchive..AlwaysOnTop(True)
+Gui.FormArchive..AlwaysOnTop(False)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST.Archive.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormArchive_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Main.End
+
+Program.Sub.FormArchive_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("FormArchive_UnLoad_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("FormArchive_UnLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+Program.Sub.FormArchive_UnLoad.End
+
+Program.Sub.cmdArch_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdArch_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.sFields.Declare(String,"TransType*!*District*!*TransID*!*OrderNo*!*ItemName*!*Qty*!*Material*!*Thickness*!*DueDate*!*Customer*!*DwgNumber*!*Priority*!*ProgBy*!*Filename*!*Length*!*Width*!*Remark*!*RevNumber*!*Cost*!*HeatNumber*!*ItemType*!*OnHold*!*TypeDescr*!*BinNumber*!*Location*!*Mill*!*PrimeCode*!*ItemData1*!*ItemData2*!*ItemData3*!*ItemData4*!*OrderShape*!*ProgramName*!*ProgramRepeat*!*BatchFile*!*Process*!*StringData1*!*StringData2*!*StringData3*!*StringData4*!*StringData5*!*StringData6*!*StringData7*!*StringData8*!*Param1*!*Param2*!*Param3*!*Param4*!*Param5*!*Param6*!*Param7*!*Param8*!*IDNegTol*!*IDPosTol*!*ODNegTol*!*ODPosTol*!*ItemData5*!*ItemData6*!*ItemData7*!*ItemData8*!*ItemData9*!*ItemData10*!*ItemData11*!*ItemData12*!*ItemData13*!*ItemData14*!*ErrorTag*!*ItemID*!*PluginTag*!*ItemData15*!*ItemData16*!*ItemData17*!*ItemData18*!*SalesRep*!*DueDateFormula*!*TaxRate*!*StartDate*!*EndDate*!*TransPriority")
+V.Local.sItemName.Declare(String,"")
+V.Local.sItemRev.Declare(String,"")
+V.Local.sData.Declare(String,"")
+V.Local.sDate.Declare(String,"")
+V.Local.sTime.Declare(String,"")
+V.Local.sFileName.Declare(String,"")
+V.Local.i.Declare(Long,0)
+V.Local.sOrder.Declare(String,"")
+
+F.Intrinsic.String.Format(V.Ambient.Date,"MMDDYY",V.Local.sDate)
+F.Intrinsic.String.Format(V.Ambient.Time,"hHnNsS",V.Local.sTime)
+F.Intrinsic.String.Build("{0}-{1}",V.Local.sDate,V.Local.sTime,V.Local.sDate)
+
+F.Intrinsic.Control.If(V.Global.sInputPath.Right1,=,"\")
+	F.Intrinsic.String.Build("{0}SigmaNest{1}.csv",V.Global.sInputPath,V.Local.sDate,V.Local.sFileName)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("{0}\SigmaNest{1}.csv",V.Global.sInputPath,V.Local.sDate,V.Local.sFileName)
+F.Intrinsic.Control.EndIf
+
+'for testing
+F.Intrinsic.String.Build("{0}\Custom\6319\SigmaNest{1}.csv",V.Caller.GlobalDir,V.Local.sDate,V.Local.sFileName)
+
+F.Intrinsic.Control.If(V.Screen.FormArchive!txtJob.Text,<>,"")
+	F.ODBC.Connection!Con.OpenCompanyConnection
+	F.Intrinsic.String.Build("Select A.Jss, (Select B.Part From V_Job_Operations B Where B.Seq = A.MSeq and A.Job = B.Job and A.Suffix = B.Suffix) as Part, A.Seq, A.MSeq From GCG_6319_JSS_Export A Where A.Job = '{0}' and A.Suffix = '{1}' and Exported = 'Y'",V.Screen.FormArchive!txtJob.Text,V.Screen.FormArchive!txtSuffix.Text,V.Local.sSql)
+	F.Data.DataTable.CreateFromSQL("Order","con",V.Local.sSql,True)
+	F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.Order.RowCount--,1)
+		V.Local.sOrder.Redim(0,2)
+		F.Intrinsic.String.RPad(V.DataTable.Order(V.Local.i).Part!FieldValTrim," ",20,V.Local.sItemName)
+		F.Intrinsic.String.Right(V.Local.sItemName,3,V.Local.sItemRev)
+		F.Intrinsic.String.Left(V.Local.sItemName,17,V.Local.sItemName)
+		F.Intrinsic.String.Left(V.DataTable.Order(V.Local.i).Jss!FieldValTrim,6,V.Local.sOrder)
+		F.Intrinsic.String.Mid(V.DataTable.Order(V.Local.i).Jss!FieldValTrim,7,3,V.Local.sOrder(1))
+		F.Intrinsic.String.Right(V.DataTable.Order(V.Local.i).Jss!FieldValTrim,6,V.Local.sOrder(2))
+		F.Intrinsic.String.Build("{0}-{1}-{2}",V.Local.sOrder,V.Local.sOrder(1),V.Local.sOrder(2),V.Local.sOrder)
+		F.Data.DataTable.AddRow("Sigmanest","TransType","SN82","District","2","OrderNO",V.Local.sOrder,"ItemName",V.Local.sItemName.Trim,"RevNumber",V.Local.sItemRev.Trim)
+	F.Intrinsic.Control.Next(V.Local.i)
+	F.ODBC.Connection!Con.Close
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.Sigmanest.RowCount--,<>,-1)
+	F.Data.DataView.Create("Sigmanest","VSigmanNest",22,"","")
+	F.Data.DataView.ToString("Sigmanest","VSigmanNest",V.Local.sFields,",",V.Ambient.NewLine,V.Local.sData)
+	F.data.DataView.Close("Sigmanest","VSigmanNest")
+	F.Intrinsic.String.Replace(V.Local.sFields,"*!*",",",V.Local.sFields)
+	F.Intrinsic.String.Build("{0}{1}{2}",V.Local.sFields,V.Ambient.NewLine,V.Local.sData,V.Local.sData)
+	F.Intrinsic.File.String2File(V.Local.sFileName,V.Local.sData)
+	F.Intrinsic.Control.CallSub(CleanUp)
+	F.Data.DataTable.Close("Order")
+	F.Data.DataTable.DeleteRow("Sigmanest")
+	F.Data.DataTable.AcceptChanges("Sigmanest")
+F.Intrinsic.Control.EndIf
+
+Gui.FormArchive.txtJob.Text("")
+Gui.FormArchive.txtSuffix.Text("")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdArch_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST.Archive.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormArchive_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdArch_Click.End
+
+Program.Sub.cmdWO_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdWO_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.sTitles.Declare(String,"")
+V.Local.sWidths.Declare(String,"")
+V.Local.sRet.Declare(String,"")
+
+F.Intrinsic.UI.SetBrowserHotTypeAhead(True)
+
+V.Local.sSql.Set("Select Distinct Job, Suffix From GCG_6319_JSS_Export Where Exported = 'Y' Order by Job, Suffix") 
+V.Local.sTitles.Set("Job*!*Suffix")
+V.Local.sWidths.Set("1800*!*1800")
+
+F.Intrinsic.String.Split(V.Local.sTitles,"*!*",V.Local.sTitles)
+F.Intrinsic.String.Split(V.Local.sWidths,"*!*",V.Local.sWidths)
+
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.Intrinsic.UI.Browser("Select Work Order","con",V.Local.sSql,V.Local.sTitles,V.Local.sWidths,10200,9000,V.Local.sRet)
+
+F.Intrinsic.Control.If(V.Local.sRet,<>,V.Ambient.Cancel)
+	F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+	Gui.FormArchive.txtJob.Text(V.Local.sRet(0).Trim)
+	Gui.FormArchive.txtSuffix.Text(V.Local.sRet(1).Trim)
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!Con.Close
+	
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdWO_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_SIGMANEST.Archive.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormArchive_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.cmdWO_Click.End
+
+Program.Sub.PreFolderCheck.Start
+F.Intrinsic.Control.SetErrorHandler("PreFolderCheck_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+v.Local.sFilePath.Declare(String,"")
+v.Local.sCustom.Declare(String,"")
+v.Local.bExists.Declare(Boolean,False)
+v.Local.sBCFile.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.bRet.Declare(String,"")
+V.Local.sFields.Declare(String,"TransType*!*District*!*TransID*!*OrderNo*!*ItemName*!*Qty*!*Material*!*Thickness*!*DueDate*!*Customer*!*DwgNumber*!*Priority*!*ProgBy*!*Filename*!*Length*!*Width*!*Remark*!*RevNumber*!*Cost*!*HeatNumber*!*ItemType*!*OnHold*!*TypeDescr*!*BinNumber*!*Location*!*Mill*!*PrimeCode*!*ItemData1*!*ItemData2*!*ItemData3*!*ItemData4*!*OrderShape*!*ProgramName*!*ProgramRepeat*!*BatchFile*!*Process*!*StringData1*!*StringData2*!*StringData3*!*StringData4*!*StringData5*!*StringData6*!*StringData7*!*StringData8*!*Param1*!*Param2*!*Param3*!*Param4*!*Param5*!*Param6*!*Param7*!*Param8*!*IDNegTol*!*IDPosTol*!*ODNegTol*!*ODPosTol*!*ItemData5*!*ItemData6*!*ItemData7*!*ItemData8*!*ItemData9*!*ItemData10*!*ItemData11*!*ItemData12*!*ItemData13*!*ItemData14*!*ErrorTag*!*ItemID*!*PluginTag*!*ItemData15*!*ItemData16*!*ItemData17*!*ItemData18*!*SalesRep*!*DueDateFormula*!*TaxRate*!*StartDate*!*EndDate*!*TransPriority")
+V.Local.i.Declare(Long,0)
+
+F.Data.DataTable.Create("Sigmanest",True)
+F.Intrinsic.String.Split(V.Local.sFields,"*!*",V.Local.sFields)
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.sFields.UBound,1)
+	f.Data.DataTable.AddColumn("Sigmanest",V.Local.sFields(V.Local.i).Trim,"String")
+F.Intrinsic.Control.Next(V.Local.i)
+	
+F.ODBC.Connection!Con.OpenCompanyConnection
+
+F.Intrinsic.String.Build("Select Input_Dir From GCG_6319_Sigma_Dir Where Company = '{0}'",V.Caller.CompanyCode,V.Local.sSql)
+F.ODBC.Connection!Con.ExecuteAndReturn(V.Local.sSql,V.Global.sInputPath)
+F.ODBC.Connection!con.Close
+
+F.Intrinsic.Control.If(V.Global.sInputPath.Trim,=,"")
+	V.Local.sError.Set("Go to Menu Item: Shop Floor Control > File > SigmaNest Integration Directories (6319) to set up a Input Directory.")
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormArchive_UnLoad)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("PreFolderCheck_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(FormArchive_UnLoad)
+Function.Intrinsic.Control.EndIf
+Program.Sub.PreFolderCheck.End
+
+Program.Sub.Cleanup.Start
+F.Intrinsic.Control.SetErrorHandler("Cleanup_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String,"")
+V.Local.sSql.Declare(String,"")
+V.Local.i.Declare(Long,0)
+
+F.ODBC.Connection!Con.OpenCompnayConnection
+
+F.Intrinsic.Control.For(V.Local.i,0,V.DataTable.Order.RowCount--,1)
+	F.Intrinsic.String.Build("Delete From JOB_CT_FLX_SCHD Where Job = '{0}' and Suffix = '{1}' and Labor_Seq = '{2}' and Matl_Seq = '{3}'",V.Screen.FormArchive!txtJob.Text,V.Screen.FormArchive!txtSuffix.Text,V.DataTable.Order(V.Local.i).Seq!FieldValTrim,V.DataTable.Order(V.Local.i).MSeq!FieldValTrim,V.Local.sSql)
+	F.ODBC.Connection!Con.Execute(v.Local.sSql)
+F.Intrinsic.Control.Next(V.Local.i)
+
+F.Intrinsic.String.Build("Delete From GCG_6319_Jss_Export Where Job = '{0}' and Suffix = '{1}'",V.Screen.FormArchive!txtJob.Text,V.Screen.FormArchive!txtSuffix.Text,V.Local.sSql)
+F.ODBC.Connection!Con.Execute(v.Local.sSql)
+
+F.ODBC.Connection!Con.Close
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Cleanup_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: GCG_6319_Sig_Unattended_Export.g2u {0}{0}Subroutine: {1}{0}Error Occurred {2} with description {3}",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Control.CallSub(Log_Error,"Error",V.Local.sError)
+Function.Intrinsic.Control.EndIf
+Program.Sub.Cleanup.End
